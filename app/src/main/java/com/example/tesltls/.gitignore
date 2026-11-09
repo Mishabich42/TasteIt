@@ -1,0 +1,8 @@
+.gradle/
+build/
+captures/
+.idea/workspace.xml
+.idea/modules.xml
+.idea/caches/
+local.properties
+*.iml
