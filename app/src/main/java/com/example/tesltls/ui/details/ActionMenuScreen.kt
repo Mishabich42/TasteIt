@@ -238,7 +238,9 @@ fun ActionMenuScreen(
 
 @Composable
 private fun DishInfoCard(dish: Dish) {
+    val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
     val category = FoodCategory.fromDb(dish.category)
+    val catTitle = category?.let { strings.categoryTitle(it) } ?: dish.category
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -255,7 +257,7 @@ private fun DishInfoCard(dish: Dish) {
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                text = (category?.title ?: dish.category).uppercase(),
+                text = catTitle.uppercase(),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.sp,
@@ -340,6 +342,7 @@ private fun ActionCard(
 /** Біла смужка "Дивитися відеорецепт ... YouTube" з червоним значком. */
 @Composable
 private fun YouTubePill(onClick: () -> Unit) {
+    val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -360,7 +363,7 @@ private fun YouTubePill(onClick: () -> Unit) {
         }
         Spacer(Modifier.width(10.dp))
         Text(
-            text = "Дивитися відеорецепт",
+            text = strings.watchOnYoutube,
             modifier = Modifier.weight(1f),
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
