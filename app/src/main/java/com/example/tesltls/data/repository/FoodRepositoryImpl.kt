@@ -16,6 +16,8 @@ import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
 
+import com.example.tesltls.ui.strings.getAppStrings
+
 /**
  * Реалізація [FoodRepository] поверх Spoonacular Food API (https://spoonacular.com/food-api)
  * з автоматичним перекладом через Google Translate.
@@ -26,8 +28,8 @@ class FoodRepositoryImpl(
     private val translationService: GoogleTranslationService
 ) : FoodRepository {
 
-    // Локальний кеш завантажених страв за id для швидкого відкриття деталей
-    private val dishesCache = ConcurrentHashMap<String, Dish>()
+    // Кеш оригінальних (неперекладених) страв за id
+    private val rawDishesCache = ConcurrentHashMap<String, Dish>()
 
     // Буфер випадкових страв по категоріях для плавного й швидкого свайпінгу
     private val categoryBuffers = ConcurrentHashMap<String, MutableList<Dish>>()
@@ -45,9 +47,8 @@ class FoodRepositoryImpl(
             while (buffer.isNotEmpty()) {
                 val candidate = buffer.removeAt(0)
                 if (candidate.id !in swipedIds) {
-                    val translated = candidate.applyTranslation()
-                    dishesCache[candidate.id] = translated
-                    return@safeCall translated
+                    rawDishesCache[candidate.id] = candidate
+                    return@safeCall candidate.applyTranslation()
                 }
             }
 
@@ -56,16 +57,15 @@ class FoodRepositoryImpl(
             val newDishes = fetchedDtos.map { it.toDomainDish(categoryFallback = category) }
 
             for (dish in newDishes) {
-                dishesCache[dish.id] = dish
+                rawDishesCache[dish.id] = dish
             }
 
             // Додаємо в буфер лише не свайпнуті
             val unswiped = newDishes.filter { it.id !in swipedIds }
             if (unswiped.isNotEmpty()) {
                 buffer.addAll(unswiped.drop(1))
-                val firstDish = unswiped.first().applyTranslation()
-                dishesCache[firstDish.id] = firstDish
-                return@safeCall firstDish
+                val firstDish = unswiped.first()
+                return@safeCall firstDish.applyTranslation()
             }
 
             // Якщо всі виявилися свайпнутими — повертаємо першу доступну або null
@@ -76,7 +76,7 @@ class FoodRepositoryImpl(
 
     override suspend fun insertSwipe(userId: String, dishId: String, isLike: Boolean) {
         safeCall("insertSwipe") {
-            val dish = dishesCache[dishId] ?: getDishById(dishId)
+            val dish = rawDishesCache[dishId] ?: getDishById(dishId)
             if (dish != null) {
                 localStore.recordSwipe(dish, isLike)
             }
@@ -87,20 +87,22 @@ class FoodRepositoryImpl(
 
     override suspend fun getRestaurantsForDish(dishId: String): List<PlaceWithPrice> =
         safeCall("getRestaurantsForDish") {
-            val dish = dishesCache[dishId] ?: getDishById(dishId)
-            val dishName = dish?.name ?: "Страва"
+            val dish = getDishById(dishId)
+            val dishName = dish?.name ?: "Dish"
             val encodedName = try {
                 URLEncoder.encode(dishName, "UTF-8")
             } catch (_: Exception) {
                 dishName
             }
 
+            val strings = getAppStrings(localStore.selectedLanguage.value)
+
             listOf(
                 PlaceWithPrice(
                     place = Place(
                         id = "delivery_glovo_$dishId",
-                        name = "Доставка Glovo",
-                        address = "Швидка доставка страв по місту",
+                        name = "Glovo",
+                        address = strings.glovoAddress,
                         latitude = 50.4501,
                         longitude = 30.5234,
                         glovoUrl = "https://glovoapp.com/ua/uk/kyiv/search/?query=$encodedName",
@@ -112,7 +114,7 @@ class FoodRepositoryImpl(
                     place = Place(
                         id = "delivery_bolt_$dishId",
                         name = "Bolt Food",
-                        address = "Доставка з ресторанів поблизу",
+                        address = strings.boltAddress,
                         latitude = 50.4501,
                         longitude = 30.5234,
                         glovoUrl = null,
@@ -123,8 +125,8 @@ class FoodRepositoryImpl(
                 PlaceWithPrice(
                     place = Place(
                         id = "place_near_$dishId",
-                        name = "Ресторани поблизу",
-                        address = "Знайти на мапі заклади з цією стравою",
+                        name = strings.nearbyName,
+                        address = strings.nearbyAddress,
                         latitude = 50.4501,
                         longitude = 30.5234,
                         glovoUrl = null,
@@ -144,35 +146,32 @@ class FoodRepositoryImpl(
         return safeCall("searchDishes") {
             val results = apiClient.searchRecipes(trimmed, number = 20)
             val dishes = results.map { it.toDomainDish() }
-            val translatedDishes = dishes.map { dish ->
-                val translated = dish.applyTranslation()
-                dishesCache[translated.id] = translated
-                translated
+            dishes.map { dish ->
+                rawDishesCache[dish.id] = dish
+                dish.applyTranslation()
             }
-            translatedDishes
         }
     }
 
     // ───────────────────────── getDishById ─────────────────────────
 
     override suspend fun getDishById(dishId: String): Dish? {
-        dishesCache[dishId]?.let { return it }
+        rawDishesCache[dishId]?.let { return it.applyTranslation() }
 
         // Перевіряємо збережені улюблені
         val fromLiked = localStore.getLikedDishes().firstOrNull { it.id == dishId }
         if (fromLiked != null) {
-            val translated = fromLiked.applyTranslation()
-            dishesCache[dishId] = translated
-            return translated
+            rawDishesCache[dishId] = fromLiked
+            return fromLiked.applyTranslation()
         }
 
         // Завантажуємо зі Spoonacular API за числовим ID
         val numericId = dishId.toLongOrNull() ?: return null
         return safeCall("getDishById") {
             val dto = apiClient.getRecipeInformation(numericId) ?: return@safeCall null
-            val dish = dto.toDomainDish().applyTranslation()
-            dishesCache[dish.id] = dish
-            dish
+            val dish = dto.toDomainDish()
+            rawDishesCache[dish.id] = dish
+            dish.applyTranslation()
         }
     }
 
@@ -181,10 +180,10 @@ class FoodRepositoryImpl(
     override suspend fun getLikedDishes(userId: String): List<Dish> =
         safeCall("getLikedDishes") {
             val liked = localStore.getLikedDishes()
-            for (d in liked) {
-                dishesCache[d.id] = d
+            liked.map { dish ->
+                rawDishesCache[dish.id] = dish
+                dish.applyTranslation()
             }
-            liked
         }
 
     // ───────────────────────── Допоміжні методи ─────────────────────────

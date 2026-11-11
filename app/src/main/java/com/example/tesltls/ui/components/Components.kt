@@ -118,6 +118,7 @@ fun FoodBottomBar(selected: BottomTab, onSelect: (BottomTab) -> Unit) {
 /** Квадратна кнопка "назад" (світло-зелена, як у макеті). */
 @Composable
 fun BackButton(onClick: () -> Unit) {
+    val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
     Box(
         modifier = Modifier
             .size(40.dp)
@@ -126,7 +127,7 @@ fun BackButton(onClick: () -> Unit) {
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        AppIcon(R.drawable.ic_chevron_left, size = 22.dp, contentDescription = "Назад")
+        AppIcon(R.drawable.ic_chevron_left, size = 22.dp, contentDescription = strings.back)
     }
 }
 

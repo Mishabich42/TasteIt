@@ -37,10 +37,12 @@ import com.example.tesltls.di.ServiceLocator
 import com.example.tesltls.domain.model.AppLanguage
 import com.example.tesltls.ui.components.AppIcon
 import com.example.tesltls.ui.components.ScreenHeader
+import com.example.tesltls.ui.strings.LocalAppStrings
 import com.example.tesltls.ui.theme.FoodColors
 
 @Composable
 fun ProfileScreen() {
+    val strings = LocalAppStrings.current
     val localStore = ServiceLocator.localStore
     val currentLanguage by localStore.selectedLanguage.collectAsStateWithLifecycle()
     val isAutoTranslate by localStore.autoTranslateEnabled.collectAsStateWithLifecycle()
@@ -60,7 +62,7 @@ fun ProfileScreen() {
         contentPadding = PaddingValues(bottom = 32.dp)
     ) {
         item {
-            ScreenHeader(title = "Профіль", subtitle = "Налаштування та акаунт")
+            ScreenHeader(title = strings.profileTitle, subtitle = strings.profileSub)
             Spacer(Modifier.height(16.dp))
         }
 
@@ -86,13 +88,13 @@ fun ProfileScreen() {
                 Spacer(Modifier.width(14.dp))
                 Column {
                     Text(
-                        text = "Гість",
+                        text = strings.guest,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = FoodColors.TextPrimary
                     )
                     Text(
-                        text = userId?.let { "ID: ${it.take(8)}…" } ?: "Підключення…",
+                        text = userId?.let { "ID: ${it.take(8)}…" } ?: strings.connecting,
                         fontSize = 13.sp,
                         color = FoodColors.TextSecondary
                     )
@@ -118,7 +120,7 @@ fun ProfileScreen() {
                     Column(Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "Google Translate",
+                                text = strings.googleTranslate,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = FoodColors.TextPrimary
@@ -140,7 +142,7 @@ fun ProfileScreen() {
                         }
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "Автоматичний переклад страв та рецептів на вибрану мову",
+                            text = strings.autoTranslateSub,
                             fontSize = 13.sp,
                             color = FoodColors.TextSecondary,
                             lineHeight = 18.sp
@@ -165,7 +167,7 @@ fun ProfileScreen() {
         // ── Вибір мови перекладу ──
         item {
             Text(
-                text = "Мова перекладу",
+                text = strings.languageSectionTitle,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
                 color = FoodColors.TextPrimary,
@@ -233,8 +235,7 @@ fun ProfileScreen() {
         item {
             Spacer(Modifier.height(16.dp))
             Text(
-                text = "Переклад виконується автоматично за допомогою Google Translate API. " +
-                    "Оригінальні дані рецептів надаються Spoonacular Food API.",
+                text = strings.profileFooterNote,
                 fontSize = 12.sp,
                 lineHeight = 16.sp,
                 color = FoodColors.TextMuted,

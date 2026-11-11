@@ -167,7 +167,7 @@ fun ActionMenuScreen(
             }
             Spacer(Modifier.height(10.dp))
             Text(
-                text = "Доступність залежить від закладу.",
+                text = strings.deliveryAvailabilityNote,
                 fontSize = 11.sp,
                 color = FoodColors.TextSecondary
             )
@@ -193,7 +193,7 @@ fun ActionMenuScreen(
         ) {
             Column(Modifier.padding(horizontal = 20.dp).navigationBarsPadding()) {
                 Text(
-                    text = "${service.title}: оберіть заклад",
+                    text = strings.selectPlaceHeader(service.title),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = FoodColors.TextPrimary

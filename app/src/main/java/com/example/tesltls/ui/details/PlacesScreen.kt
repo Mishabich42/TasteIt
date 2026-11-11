@@ -35,16 +35,18 @@ import com.example.tesltls.ui.components.LinkPill
 import com.example.tesltls.ui.components.LoadingBox
 import com.example.tesltls.ui.components.MessageBox
 import com.example.tesltls.ui.components.ScreenHeader
+import com.example.tesltls.ui.strings.LocalAppStrings
 import com.example.tesltls.ui.theme.FoodColors
 
 @Composable
 fun PlacesScreen(viewModel: DishDetailsViewModel, onBack: () -> Unit) {
+    val strings = LocalAppStrings.current
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         ScreenHeader(
-            title = "Заклади поруч",
-            subtitle = state.dish?.name ?: "Де скуштувати цю страву",
+            title = strings.placesTitle,
+            subtitle = state.dish?.name ?: strings.placesHeaderSub,
             onBack = onBack
         )
         Spacer(Modifier.height(16.dp))
@@ -53,11 +55,11 @@ fun PlacesScreen(viewModel: DishDetailsViewModel, onBack: () -> Unit) {
             state.isLoading -> LoadingBox()
             state.error != null && state.dish == null -> MessageBox(
                 message = state.error.orEmpty(),
-                actionLabel = "Спробувати ще раз",
+                actionLabel = strings.tryAgain,
                 onAction = viewModel::load
             )
             state.places.isEmpty() -> MessageBox(
-                message = "Поки що немає закладів, де подають цю страву."
+                message = strings.noPlacesNearby
             )
             else -> LazyColumn(
                 contentPadding = PaddingValues(bottom = 24.dp),
@@ -72,6 +74,7 @@ fun PlacesScreen(viewModel: DishDetailsViewModel, onBack: () -> Unit) {
 
 @Composable
 private fun PlaceCard(item: PlaceWithPrice) {
+    val strings = LocalAppStrings.current
     val context = LocalContext.current
     val place = item.place
 
@@ -120,7 +123,7 @@ private fun PlaceCard(item: PlaceWithPrice) {
         Spacer(Modifier.height(12.dp))
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            LinkPill(label = "Маршрут", icon = R.drawable.ic_pin) { context.openMap(place) }
+            LinkPill(label = strings.route, icon = R.drawable.ic_pin) { context.openMap(place) }
             place.deliveryUrl(DeliveryService.GLOVO)?.let { url ->
                 LinkPill(label = "Glovo") { context.openUrl(url) }
             }

@@ -52,15 +52,21 @@ data class AppStrings(
     val placesSub: String,
     val deliveryTitle: String,
     val deliverySub: String,
+    val deliveryAvailabilityNote: String,
     val noDeliveryForService: String,
     val watchOnYoutube: String,
     val stepByStep: String,
     val noRecipeText: String,
 
-    // Заклади
+    // Заклади та доставка
     val placesHeaderSub: String,
     val route: String,
     val noPlacesNearby: String,
+    val glovoAddress: String,
+    val boltAddress: String,
+    val nearbyName: String,
+    val nearbyAddress: String,
+    val selectPlace: String,
 
     // Улюблене
     val favoritesTitle: String,
@@ -71,10 +77,20 @@ data class AppStrings(
     val profileTitle: String,
     val profileSub: String,
     val guest: String,
+    val connecting: String,
     val googleTranslate: String,
     val autoTranslateSub: String,
     val languageSectionTitle: String,
-    val profileFooterNote: String
+    val profileFooterNote: String,
+
+    // Системні / загальні
+    val back: String,
+    val dishNotFound: String,
+    val cantOpenUrl: String,
+    val networkError: String,
+    val serverError: String,
+    val dataError: String,
+    val unknownError: String
 ) {
     fun categoryTitle(category: FoodCategory): String = when (category) {
         FoodCategory.SOUPS -> catSoups
@@ -92,6 +108,8 @@ data class AppStrings(
         FoodCategory.BAKERY -> catBakery
         FoodCategory.DRINKS -> catDrinks
     }
+
+    fun selectPlaceHeader(serviceTitle: String): String = "$serviceTitle: $selectPlace"
 }
 
 val LocalAppStrings = staticCompositionLocalOf { getAppStrings(AppLanguage.UKRAINIAN) }
@@ -136,6 +154,7 @@ fun getAppStrings(language: AppLanguage): AppStrings = when (language) {
         placesSub = "Знайдіть, де скуштувати цю страву неподалік від вас.",
         deliveryTitle = "Доставка додому",
         deliverySub = "Перевірте страву у сервісах доставки.",
+        deliveryAvailabilityNote = "Доступність залежить від закладу.",
         noDeliveryForService = "Для цієї страви немає доставки через",
         watchOnYoutube = "Дивитися відеорецепт на YouTube",
         stepByStep = "Покрокова інструкція",
@@ -143,16 +162,29 @@ fun getAppStrings(language: AppLanguage): AppStrings = when (language) {
         placesHeaderSub = "Де скуштувати цю страву",
         route = "Маршрут",
         noPlacesNearby = "Поки що немає закладів, де подають цю страву.",
+        glovoAddress = "Швидка доставка страв по місту",
+        boltAddress = "Доставка з ресторанів поблизу",
+        nearbyName = "Ресторани поблизу",
+        nearbyAddress = "Знайти на мапі заклади з цією стравою",
+        selectPlace = "оберіть заклад",
         favoritesTitle = "Улюблене",
         favoritesSub = "Страви, які ви вже обрали",
         favoritesEmpty = "Тут з'являться страви, які ви свайпнете вправо. Почніть з будь-якої категорії!",
         profileTitle = "Профіль",
         profileSub = "Налаштування та акаунт",
         guest = "Гість",
+        connecting = "Підключення…",
         googleTranslate = "Google Translate",
         autoTranslateSub = "Автоматичний переклад страв та рецептів на вибрану мову",
         languageSectionTitle = "Мова інтерфейсу та перекладу",
-        profileFooterNote = "Переклад виконується автоматично за допомогою Google Translate API. Оригінальні дані рецептів надаються Spoonacular Food API."
+        profileFooterNote = "Переклад виконується автоматично за допомогою Google Translate API. Оригінальні дані рецептів надаються Spoonacular Food API.",
+        back = "Назад",
+        dishNotFound = "Страву не знайдено",
+        cantOpenUrl = "Не вдалося відкрити посилання",
+        networkError = "Немає з'єднання з інтернетом. Перевірте мережу та спробуйте ще раз.",
+        serverError = "Сервер повернув помилку. Спробуйте трохи пізніше.",
+        dataError = "Отримано некоректні дані від сервера.",
+        unknownError = "Щось пішло не так. Спробуйте ще раз."
     )
 
     AppLanguage.ENGLISH -> AppStrings(
@@ -194,6 +226,7 @@ fun getAppStrings(language: AppLanguage): AppStrings = when (language) {
         placesSub = "Find where to taste this dish nearby.",
         deliveryTitle = "Home delivery",
         deliverySub = "Check this dish in delivery services.",
+        deliveryAvailabilityNote = "Availability depends on the place.",
         noDeliveryForService = "No delivery for this dish via",
         watchOnYoutube = "Watch video recipe on YouTube",
         stepByStep = "Step-by-step instructions",
@@ -201,16 +234,29 @@ fun getAppStrings(language: AppLanguage): AppStrings = when (language) {
         placesHeaderSub = "Where to taste this dish",
         route = "Route",
         noPlacesNearby = "No places serving this dish yet.",
+        glovoAddress = "Fast food delivery in the city",
+        boltAddress = "Delivery from nearby restaurants",
+        nearbyName = "Nearby restaurants",
+        nearbyAddress = "Find places serving this dish on the map",
+        selectPlace = "select a place",
         favoritesTitle = "Favorites",
         favoritesSub = "Dishes you've already picked",
         favoritesEmpty = "Dishes you swipe right will appear here. Start with any category!",
         profileTitle = "Profile",
         profileSub = "Settings and account",
         guest = "Guest",
+        connecting = "Connecting…",
         googleTranslate = "Google Translate",
         autoTranslateSub = "Automatic translation of dishes and recipes into your chosen language",
         languageSectionTitle = "App language & translation",
-        profileFooterNote = "Translation is powered by Google Translate API. Original recipe data is provided by Spoonacular Food API."
+        profileFooterNote = "Translation is powered by Google Translate API. Original recipe data is provided by Spoonacular Food API.",
+        back = "Back",
+        dishNotFound = "Dish not found",
+        cantOpenUrl = "Could not open link",
+        networkError = "No internet connection. Please check your network and try again.",
+        serverError = "Server returned an error. Please try again later.",
+        dataError = "Invalid data received from server.",
+        unknownError = "Something went wrong. Please try again."
     )
 
     AppLanguage.POLISH -> AppStrings(
@@ -238,7 +284,7 @@ fun getAppStrings(language: AppLanguage): AppStrings = when (language) {
         catBakery = "Wypieki",
         catDrinks = "Napoje",
         swipeHint = "W lewo — odrzuć, w prawo — wybierz",
-        swipeEmptyMessage = "Przejrzano wszystkie dania z tej kategorii na dziś. Wróć jutro lub wybierz inną kategorię.",
+        swipeEmptyMessage = "Przejrzano wszystkie dania z tej kategorii na dziś. Wróć jutro lub wybierz inną категоріę.",
         toMenu = "Do menu",
         tryAgain = "Spróbuj ponownie",
         skip = "Odrzuć",
@@ -252,6 +298,7 @@ fun getAppStrings(language: AppLanguage): AppStrings = when (language) {
         placesSub = "Znajdź, gdzie zjeść to danie w okolicy.",
         deliveryTitle = "Dostawa do domu",
         deliverySub = "Sprawdź danie w usługach dostawy.",
+        deliveryAvailabilityNote = "Dostępność zależy od lokalu.",
         noDeliveryForService = "Brak dostawy dla tego dania przez",
         watchOnYoutube = "Zobacz przepis wideo na YouTube",
         stepByStep = "Instrukcja krok po kroku",
@@ -259,16 +306,29 @@ fun getAppStrings(language: AppLanguage): AppStrings = when (language) {
         placesHeaderSub = "Gdzie zjeść to danie",
         route = "Trasa",
         noPlacesNearby = "Brak lokali serwujących to danie w pobliżu.",
+        glovoAddress = "Szybka dostawa dań w mieście",
+        boltAddress = "Dostawa z pobliskich restauracji",
+        nearbyName = "Restauracje w pobliżu",
+        nearbyAddress = "Znajdź na mapie lokale z tym daniem",
+        selectPlace = "wybierz lokal",
         favoritesTitle = "Ulubione",
         favoritesSub = "Dania, które już wybrałeś",
         favoritesEmpty = "Tutaj pojawią się dania, które polubisz. Zacznij od dowolnej kategorii!",
         profileTitle = "Profil",
         profileSub = "Ustawienia i konto",
         guest = "Gość",
+        connecting = "Łączenie…",
         googleTranslate = "Google Translate",
         autoTranslateSub = "Automatyczne tłumaczenie dań i przepisów na wybrany język",
         languageSectionTitle = "Język aplikacji i tłumaczenie",
-        profileFooterNote = "Tłumaczenie jest obsługiwane przez Google Translate API. Dane przepisów pochodzą ze Spoonacular Food API."
+        profileFooterNote = "Tłumaczenie jest obsługiwane przez Google Translate API. Dane przepisów pochodzą ze Spoonacular Food API.",
+        back = "Wstecz",
+        dishNotFound = "Nie znaleziono dania",
+        cantOpenUrl = "Nie udało się otworzyć linku",
+        networkError = "Brak połączenia z internetem. Sprawdź sieć i spróbuj ponownie.",
+        serverError = "Serwer zwrócił błąd. Spróbuj ponownie później.",
+        dataError = "Otrzymano nieprawidłowe dane z serwera.",
+        unknownError = "Coś poszło nie tak. Spróbuj ponownie."
     )
 
     AppLanguage.GERMAN -> AppStrings(
@@ -310,6 +370,7 @@ fun getAppStrings(language: AppLanguage): AppStrings = when (language) {
         placesSub = "Finde heraus, wo du dieses Gericht probieren kannst.",
         deliveryTitle = "Lieferung nach Hause",
         deliverySub = "Prüfe das Gericht bei Lieferdiensten.",
+        deliveryAvailabilityNote = "Die Verfügbarkeit hängt vom Lokal ab.",
         noDeliveryForService = "Keine Lieferung für dieses Gericht über",
         watchOnYoutube = "Videorezept auf YouTube ansehen",
         stepByStep = "Schritt-für-Schritt-Anleitung",
@@ -317,16 +378,29 @@ fun getAppStrings(language: AppLanguage): AppStrings = when (language) {
         placesHeaderSub = "Wo man dieses Gericht essen kann",
         route = "Route",
         noPlacesNearby = "Noch keine Lokale für dieses Gericht in der Nähe.",
+        glovoAddress = "Schnelle Lieferung von Gerichten in der Stadt",
+        boltAddress = "Lieferung von Restaurants in der Nähe",
+        nearbyName = "Restaurants in der Nähe",
+        nearbyAddress = "Finde Lokale mit diesem Gericht auf der Karte",
+        selectPlace = "Lokal auswählen",
         favoritesTitle = "Favoriten",
         favoritesSub = "Gerichte, die du bereits ausgewählt hast",
         favoritesEmpty = "Hier erscheinen Gerichte, die du nach rechts gewischt hast. Starte mit einer Kategorie!",
         profileTitle = "Profil",
         profileSub = "Einstellungen & Konto",
         guest = "Gast",
+        connecting = "Verbinden…",
         googleTranslate = "Google Translate",
         autoTranslateSub = "Automatische Übersetzung von Gerichten und Rezepten in die gewählte Sprache",
         languageSectionTitle = "App-Sprache & Übersetzung",
-        profileFooterNote = "Übersetzung powered by Google Translate API. Rezeptdaten bereitgestellt von Spoonacular Food API."
+        profileFooterNote = "Übersetzung powered by Google Translate API. Rezeptdaten bereitgestellt von Spoonacular Food API.",
+        back = "Zurück",
+        dishNotFound = "Gericht nicht gefunden",
+        cantOpenUrl = "Link konnte nicht geöffnet werden",
+        networkError = "Keine Internetverbindung. Bitte überprüfe dein Netzwerk und versuche es erneut.",
+        serverError = "Der Server hat einen Fehler zurückgegeben. Bitte versuche es später erneut.",
+        dataError = "Ungültige Daten vom Server erhalten.",
+        unknownError = "Etwas ist schiefgelaufen. Bitte versuche es erneut."
     )
 
     AppLanguage.SPANISH -> AppStrings(
@@ -368,6 +442,7 @@ fun getAppStrings(language: AppLanguage): AppStrings = when (language) {
         placesSub = "Encuentra dónde probar este plato cerca de ti.",
         deliveryTitle = "Entrega a domicilio",
         deliverySub = "Consulta este plato en servicios de entrega.",
+        deliveryAvailabilityNote = "La disponibilidad depende del establecimiento.",
         noDeliveryForService = "No hay entrega para este plato vía",
         watchOnYoutube = "Ver receta en YouTube",
         stepByStep = "Instrucciones paso a paso",
@@ -375,16 +450,29 @@ fun getAppStrings(language: AppLanguage): AppStrings = when (language) {
         placesHeaderSub = "Dónde degustar este plato",
         route = "Ruta",
         noPlacesNearby = "Aún no hay lugares que sirvan este plato cerca.",
+        glovoAddress = "Entrega rápida de platos en la ciudad",
+        boltAddress = "Entrega desde restaurantes cercanos",
+        nearbyName = "Restaurantes cercanos",
+        nearbyAddress = "Encuentra en el mapa lugares con este plato",
+        selectPlace = "elige un lugar",
         favoritesTitle = "Favoritos",
         favoritesSub = "Platos que ya has elegido",
         favoritesEmpty = "Los platos que deslices a la derecha aparecerán aquí. ¡Comienza con cualquier categoría!",
         profileTitle = "Perfil",
         profileSub = "Ajustes y cuenta",
         guest = "Invitado",
+        connecting = "Conectando…",
         googleTranslate = "Google Translate",
         autoTranslateSub = "Traducción automática de platos y recetas al idioma elegido",
         languageSectionTitle = "Idioma de la app y traducción",
-        profileFooterNote = "Traducción impulsada por Google Translate API. Datos de recetas proporcionados por Spoonacular Food API."
+        profileFooterNote = "Traducción impulsada por Google Translate API. Datos de recetas proporcionados por Spoonacular Food API.",
+        back = "Atrás",
+        dishNotFound = "Plato no encontrado",
+        cantOpenUrl = "No se pudo abrir el enlace",
+        networkError = "Sin conexión a internet. Por favor verifica tu red e inténtalo de nuevo.",
+        serverError = "El servidor devolvió un error. Por favor inténtalo más tarde.",
+        dataError = "Datos no válidos recibidos del servidor.",
+        unknownError = "Algo salió mal. Por favor inténtalo de nuevo."
     )
 
     AppLanguage.FRENCH -> AppStrings(
@@ -426,6 +514,7 @@ fun getAppStrings(language: AppLanguage): AppStrings = when (language) {
         placesSub = "Trouvez où déguster ce plat près de chez vous.",
         deliveryTitle = "Livraison à domicile",
         deliverySub = "Vérifiez ce plat sur les services de livraison.",
+        deliveryAvailabilityNote = "La disponibilité dépend de l'établissement.",
         noDeliveryForService = "Pas de livraison pour ce plat via",
         watchOnYoutube = "Voir la recette vidéo sur YouTube",
         stepByStep = "Instructions pas à pas",
@@ -433,16 +522,29 @@ fun getAppStrings(language: AppLanguage): AppStrings = when (language) {
         placesHeaderSub = "Où déguster ce plat",
         route = "Itinéraire",
         noPlacesNearby = "Aucun établissement ne propose ce plat pour le moment.",
+        glovoAddress = "Livraison rapide de plats en ville",
+        boltAddress = "Livraison depuis les restaurants à proximité",
+        nearbyName = "Restaurants à proximité",
+        nearbyAddress = "Trouver sur la carte des lieux servant ce plat",
+        selectPlace = "choisissez un établissement",
         favoritesTitle = "Favoris",
         favoritesSub = "Plats que vous avez déjà choisis",
         favoritesEmpty = "Les plats que vous glissez vers la droite apparaîtront ici. Commencez par une catégorie !",
         profileTitle = "Profil",
         profileSub = "Paramètres et compte",
         guest = "Invité",
+        connecting = "Connexion…",
         googleTranslate = "Google Translate",
         autoTranslateSub = "Traduction automatique des plats et recettes dans la langue choisie",
         languageSectionTitle = "Langue de l'app et traduction",
-        profileFooterNote = "Traduction optimisée par Google Translate API. Données fournies par Spoonacular Food API."
+        profileFooterNote = "Traduction optimisée par Google Translate API. Données fournies par Spoonacular Food API.",
+        back = "Retour",
+        dishNotFound = "Plat non trouvé",
+        cantOpenUrl = "Impossible d'ouvrir le lien",
+        networkError = "Pas de connexion internet. Veuillez vérifier votre réseau et réessayer.",
+        serverError = "Le serveur a retourné une erreur. Veuillez réessayer plus tard.",
+        dataError = "Données non valides reçues du serveur.",
+        unknownError = "Une erreur est survenue. Veuillez réessayer."
     )
 
     AppLanguage.ITALIAN -> AppStrings(
@@ -484,6 +586,7 @@ fun getAppStrings(language: AppLanguage): AppStrings = when (language) {
         placesSub = "Trova dove assaggiare questo piatto vicino a te.",
         deliveryTitle = "Consegna a domicilio",
         deliverySub = "Controlla questo piatto sui servizi di consegna.",
+        deliveryAvailabilityNote = "La disponibilità dipende dal locale.",
         noDeliveryForService = "Nessuna consegna per questo piatto tramite",
         watchOnYoutube = "Guarda la video ricetta su YouTube",
         stepByStep = "Istruzioni passo dopo passo",
@@ -491,15 +594,28 @@ fun getAppStrings(language: AppLanguage): AppStrings = when (language) {
         placesHeaderSub = "Dove gustare questo piatto",
         route = "Percorso",
         noPlacesNearby = "Ancora nessun locale serve questo piatto nelle vicinanze.",
+        glovoAddress = "Consegna rapida di piatti in città",
+        boltAddress = "Consegna dai ristoranti nelle vicinanze",
+        nearbyName = "Ristoranti nelle vicinanze",
+        nearbyAddress = "Trova sulla mappa i locali con questo piatto",
+        selectPlace = "scegli un locale",
         favoritesTitle = "Preferiti",
         favoritesSub = "Piatti che hai già scelto",
         favoritesEmpty = "I piatti su cui scorri a destra appariranno qui. Inizia da qualsiasi categoria!",
         profileTitle = "Profilo",
         profileSub = "Impostazioni e account",
         guest = "Ospite",
+        connecting = "Connessione…",
         googleTranslate = "Google Translate",
         autoTranslateSub = "Traduzione automatica di piatti e ricette nella lingua selezionata",
         languageSectionTitle = "Lingua dell'app e traduzione",
-        profileFooterNote = "Traduzione offerta da Google Translate API. Dati ricette forniti da Spoonacular Food API."
+        profileFooterNote = "Traduzione offerta da Google Translate API. Dati ricette forniti da Spoonacular Food API.",
+        back = "Indietro",
+        dishNotFound = "Piatto non trovato",
+        cantOpenUrl = "Impossibile aprire il link",
+        networkError = "Nessuna connessione internet. Controlla la tua rete e riprova.",
+        serverError = "Il server ha restituito un errore. Riprova più tardi.",
+        dataError = "Dati non validi ricevuti dal server.",
+        unknownError = "Qualcosa è andato storto. Riprova."
     )
 }

@@ -25,6 +25,7 @@ import com.example.tesltls.ui.components.DishRow
 import com.example.tesltls.ui.components.LoadingBox
 import com.example.tesltls.ui.components.MessageBox
 import com.example.tesltls.ui.components.ScreenHeader
+import com.example.tesltls.ui.strings.LocalAppStrings
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -70,23 +71,24 @@ class FavoritesViewModel(
 
 @Composable
 fun FavoritesScreen(viewModel: FavoritesViewModel, onDishClick: (String) -> Unit) {
+    val strings = LocalAppStrings.current
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     // Оновлюємо список щоразу, коли екран знову стає активним
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        ScreenHeader(title = "Улюблене", subtitle = "Страви, які ви вже обрали")
+        ScreenHeader(title = strings.favoritesTitle, subtitle = strings.favoritesSub)
         Spacer(Modifier.height(16.dp))
 
         when (val s = state) {
             FavoritesUiState.Loading -> LoadingBox()
             FavoritesUiState.Empty -> MessageBox(
-                "Тут з'являться страви, які ви свайпнете вправо. Почніть з будь-якої категорії!"
+                strings.favoritesEmpty
             )
             is FavoritesUiState.Error -> MessageBox(
                 message = s.message,
-                actionLabel = "Спробувати ще раз",
+                actionLabel = strings.tryAgain,
                 onAction = viewModel::refresh
             )
             is FavoritesUiState.Content -> LazyColumn(
