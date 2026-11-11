@@ -65,14 +65,15 @@ fun AppIcon(
 
 // ───────────────────────── Нижня навігація ─────────────────────────
 
-enum class BottomTab(val label: String, @DrawableRes val icon: Int) {
-    SEARCH("Пошук", R.drawable.ic_grid),
-    FAVORITES("Улюблене", R.drawable.ic_heart),
-    PROFILE("Профіль", R.drawable.ic_person)
+enum class BottomTab(@DrawableRes val icon: Int) {
+    SEARCH(R.drawable.ic_grid),
+    FAVORITES(R.drawable.ic_heart),
+    PROFILE(R.drawable.ic_person)
 }
 
 @Composable
 fun FoodBottomBar(selected: BottomTab, onSelect: (BottomTab) -> Unit) {
+    val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
     Column(Modifier.background(FoodColors.BottomBar)) {
         HorizontalDivider(color = FoodColors.Divider)
         Row(
@@ -84,6 +85,11 @@ fun FoodBottomBar(selected: BottomTab, onSelect: (BottomTab) -> Unit) {
             BottomTab.entries.forEach { tab ->
                 val isSelected = tab == selected
                 val color = if (isSelected) FoodColors.Green else FoodColors.TextMuted
+                val label = when (tab) {
+                    BottomTab.SEARCH -> strings.navSearch
+                    BottomTab.FAVORITES -> strings.navFavorites
+                    BottomTab.PROFILE -> strings.navProfile
+                }
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -94,9 +100,9 @@ fun FoodBottomBar(selected: BottomTab, onSelect: (BottomTab) -> Unit) {
                         .padding(vertical = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    AppIcon(tab.icon, tint = color, size = 26.dp, contentDescription = tab.label)
+                    AppIcon(tab.icon, tint = color, size = 26.dp, contentDescription = label)
                     Text(
-                        text = tab.label,
+                        text = label,
                         color = color,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold
@@ -247,7 +253,9 @@ fun DishImage(
 /** Рядок зі стравою (результати пошуку, "Улюблене"). */
 @Composable
 fun DishRow(dish: Dish, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
     val cat = FoodCategory.fromDb(dish.category)
+    val catTitle = cat?.let { strings.categoryTitle(it) } ?: dish.category
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -265,7 +273,7 @@ fun DishRow(dish: Dish, onClick: () -> Unit, modifier: Modifier = Modifier) {
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                text = (cat?.title ?: dish.category).uppercase(),
+                text = catTitle.uppercase(),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.sp,

@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import com.example.tesltls.di.ServiceLocator
 import com.example.tesltls.ui.navigation.FoodApp
 import com.example.tesltls.ui.theme.TesltlsTheme
 
@@ -18,6 +19,8 @@ class MainActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
         )
+
+        ServiceLocator.init(this)
 
         setContent {
             // Світла тема без dynamic color — інакше системні кольори "поламають" палітру макета

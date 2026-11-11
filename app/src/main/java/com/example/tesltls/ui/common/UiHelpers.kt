@@ -17,13 +17,17 @@ import java.util.Locale
 
 /** Перетворює технічну помилку на зрозуміле користувачу повідомлення. */
 fun Throwable.toUserMessage(): String = when (this) {
-    is FoodRepositoryException.Network, is HttpRequestException, is IOException ->
-        "Немає з'єднання з інтернетом. Перевірте мережу та спробуйте ще раз."
+    is FoodRepositoryException.Network ->
+        message?.takeIf { it.isNotBlank() }
+            ?: "Немає з'єднання з інтернетом. Перевірте мережу та спробуйте ще раз."
     is FoodRepositoryException.Database ->
-        "Сервер повернув помилку. Спробуйте трохи пізніше."
+        message?.takeIf { it.isNotBlank() }
+            ?: "Сервер повернув помилку. Спробуйте трохи пізніше."
     is FoodRepositoryException.Serialization ->
         "Отримано некоректні дані від сервера."
-    else -> "Щось пішло не так. Спробуйте ще раз."
+    is HttpRequestException, is IOException ->
+        "Немає з'єднання з інтернетом. Перевірте мережу та спробуйте ще раз."
+    else -> message?.takeIf { it.isNotBlank() } ?: "Щось пішло не так. Спробуйте ще раз."
 }
 
 /** Відкриває посилання (браузер, YouTube, Glovo, Bolt) або показує повідомлення, якщо нема чим. */

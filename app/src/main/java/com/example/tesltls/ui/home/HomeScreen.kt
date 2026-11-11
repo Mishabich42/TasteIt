@@ -84,6 +84,7 @@ fun HomeScreen(
     onCategoryClick: (FoodCategory) -> Unit,
     onDishClick: (String) -> Unit
 ) {
+    val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
     val query by viewModel.query.collectAsStateWithLifecycle()
     val results by viewModel.searchResults.collectAsStateWithLifecycle()
     val currentResults = results // локальна копія, щоб працював smart-cast
@@ -124,7 +125,7 @@ fun HomeScreen(
 
                 currentResults.getOrNull().isNullOrEmpty() ->
                     item(key = "empty", span = { GridItemSpan(maxLineSpan) }) {
-                        CenteredHint("Нічого не знайдено за запитом «${query.trim()}»")
+                        CenteredHint("${strings.nothingFound} «${query.trim()}»")
                     }
 
                 else -> items(
@@ -143,13 +144,14 @@ fun HomeScreen(
 
 @Composable
 private fun HomeHeader() {
+    val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
         verticalAlignment = Alignment.Top
     ) {
         Column(Modifier.weight(1f)) {
             Text(
-                text = "GOOD FOOD, GOOD MOOD",
+                text = strings.tagline,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.sp,
@@ -157,7 +159,7 @@ private fun HomeHeader() {
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                text = "Що вам хотілося б сьогодні?",
+                text = strings.homeTitle,
                 fontSize = 30.sp,
                 lineHeight = 34.sp,
                 fontWeight = FontWeight.ExtraBold,
@@ -171,19 +173,20 @@ private fun HomeHeader() {
                 .background(FoodColors.GreenSoft)
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            Text("Ням", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = FoodColors.TextPrimary)
+            Text(strings.yum, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = FoodColors.TextPrimary)
         }
     }
 }
 
 @Composable
 private fun SearchField(value: String, onValueChange: (String) -> Unit) {
+    val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
     TextField(
         value = value,
         onValueChange = onValueChange,
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
-        placeholder = { Text("Пошук", color = FoodColors.TextMuted) },
+        placeholder = { Text(strings.searchPlaceholder, color = FoodColors.TextMuted) },
         leadingIcon = { AppIcon(R.drawable.ic_search, tint = FoodColors.TextSecondary, size = 20.dp) },
         trailingIcon = {
             if (value.isNotEmpty()) {
@@ -194,7 +197,7 @@ private fun SearchField(value: String, onValueChange: (String) -> Unit) {
                         .clickable { onValueChange("") },
                     contentAlignment = Alignment.Center
                 ) {
-                    AppIcon(R.drawable.ic_close, tint = FoodColors.TextSecondary, size = 18.dp, contentDescription = "Очистити")
+                    AppIcon(R.drawable.ic_close, tint = FoodColors.TextSecondary, size = 18.dp, contentDescription = "Clear")
                 }
             }
         },
@@ -215,12 +218,13 @@ private fun SearchField(value: String, onValueChange: (String) -> Unit) {
 
 @Composable
 private fun CategoriesTitle(count: Int) {
+    val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "Категорії",
+            text = strings.categories,
             fontSize = 17.sp,
             fontWeight = FontWeight.Bold,
             color = FoodColors.TextPrimary,
@@ -239,6 +243,7 @@ private fun CategoriesTitle(count: Int) {
 
 @Composable
 private fun CategoryTile(category: FoodCategory, onClick: () -> Unit) {
+    val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -257,7 +262,7 @@ private fun CategoryTile(category: FoodCategory, onClick: () -> Unit) {
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = category.title,
+            text = strings.categoryTitle(category),
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             color = FoodColors.TextPrimary,

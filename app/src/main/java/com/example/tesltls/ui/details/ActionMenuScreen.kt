@@ -60,6 +60,7 @@ fun ActionMenuScreen(
     onOpenPlaces: () -> Unit,
     onExitToMenu: () -> Unit
 ) {
+    val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var sheetService by remember { mutableStateOf<DeliveryService?>(null) }
@@ -71,8 +72,8 @@ fun ActionMenuScreen(
     }
     if (dish == null) {
         MessageBox(
-            message = state.error ?: "Страву не знайдено",
-            actionLabel = "Спробувати ще раз",
+            message = state.error ?: "—",
+            actionLabel = strings.tryAgain,
             onAction = viewModel::load
         )
         return
@@ -83,7 +84,7 @@ fun ActionMenuScreen(
         val options = state.places.filter { it.place.deliveryUrl(service) != null }
         when (options.size) {
             0 -> Toast.makeText(
-                context, "Для цієї страви немає доставки через ${service.title}", Toast.LENGTH_SHORT
+                context, "${strings.noDeliveryForService} ${service.title}", Toast.LENGTH_SHORT
             ).show()
             1 -> context.openUrl(options.first().place.deliveryUrl(service)!!)
             else -> sheetService = service
@@ -100,8 +101,8 @@ fun ActionMenuScreen(
             .padding(bottom = 24.dp)
     ) {
         ScreenHeader(
-            title = "Смачний вибір!",
-            subtitle = "Тепер оберіть, як насолодитися стравою.",
+            title = strings.tastyChoice,
+            subtitle = strings.tastyChoiceSub,
             onBack = onBack
         )
         Spacer(Modifier.height(16.dp))
@@ -110,7 +111,7 @@ fun ActionMenuScreen(
 
         Spacer(Modifier.height(20.dp))
         Text(
-            text = "Що далі?",
+            text = strings.whatNext,
             fontSize = 18.sp,
             fontWeight = FontWeight.ExtraBold,
             color = FoodColors.TextPrimary
@@ -121,8 +122,8 @@ fun ActionMenuScreen(
         ActionCard(
             color = FoodColors.CardGreen,
             icon = R.drawable.ic_book,
-            title = "Рецепт",
-            subtitle = "Покрокова інструкція, щоб приготувати страву вдома.",
+            title = strings.recipeTitle,
+            subtitle = strings.recipeSub,
             onClick = onOpenRecipe
         ) {
             if (!dish.youtubeUrl.isNullOrBlank()) {
@@ -136,8 +137,8 @@ fun ActionMenuScreen(
         ActionCard(
             color = FoodColors.CardPlaces,
             icon = R.drawable.ic_pin,
-            title = "Заклади поруч",
-            subtitle = "Знайдіть, де скуштувати цю страву неподалік від вас.",
+            title = strings.placesTitle,
+            subtitle = strings.placesSub,
             onClick = onOpenPlaces
         )
         Spacer(Modifier.height(12.dp))
@@ -146,8 +147,8 @@ fun ActionMenuScreen(
         ActionCard(
             color = FoodColors.CardDelivery,
             icon = R.drawable.ic_bag,
-            title = "Доставка додому",
-            subtitle = "Перевірте страву у сервісах доставки."
+            title = strings.deliveryTitle,
+            subtitle = strings.deliverySub
         ) {
             Spacer(Modifier.height(14.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -177,8 +178,8 @@ fun ActionMenuScreen(
         ActionCard(
             color = FoodColors.CardNeutral,
             icon = R.drawable.ic_exit,
-            title = "Вийти до меню",
-            subtitle = "Обрати іншу категорію",
+            title = strings.toMenu,
+            subtitle = strings.categories,
             onClick = onExitToMenu
         )
     }
