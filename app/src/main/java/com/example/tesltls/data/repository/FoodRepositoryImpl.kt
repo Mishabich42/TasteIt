@@ -17,6 +17,7 @@ import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import io.github.jan.supabase.postgrest.query.filter.PostgrestFilterBuilder
 import io.ktor.client.plugins.HttpRequestTimeoutException
+import java.io.IOException
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.random.Random
 import kotlin.time.Clock
@@ -33,11 +34,6 @@ import kotlinx.serialization.SerializationException
  * Реалізація [FoodRepository] поверх Supabase (плагін Postgrest, supabase-kt 3.x).
  *
  * [SupabaseClient] має бути створений з `install(Postgrest)`.
- *
- * Приклад DI (Koin):
- * ```
- * single<FoodRepository> { FoodRepositoryImpl(get()) }
- * ```
  *
  * @param clock годинник — параметр, щоб у unit-тестах можна було "заморозити" час.
  * @param timeZoneProvider часовий пояс користувача: межі "сьогодні" рахуються
@@ -192,6 +188,42 @@ class FoodRepositoryImpl(
             .replace("%", "\\%")
             .replace("_", "\\_")
 
+    // ───────────────────────── getDishById ─────────────────────────
+
+    override suspend fun getDishById(dishId: String): Dish? =
+        safeCall("getDishById") {
+            supabase.postgrest[TABLE_DISHES]
+                .select {
+                    filter { eq("id", dishId) }
+                    limit(1)
+                }
+                .decodeList<Dish>()
+                .firstOrNull()
+        }
+
+    // ───────────────────────── getLikedDishes ─────────────────────────
+
+    /**
+     * Лайкнуті страви одним запитом: `user_swipes` + вкладений join на `dishes`
+     * (зв'язок many-to-one, тому `dishes` приходить одним об'єктом).
+     * Сортуємо за часом свайпу (колонку created_at у вибірку брати не обов'язково).
+     * Одну страву користувач міг лайкнути кілька разів — прибираємо дублікати.
+     */
+    override suspend fun getLikedDishes(userId: String): List<Dish> =
+        safeCall("getLikedDishes") {
+            supabase.postgrest[TABLE_USER_SWIPES]
+                .select(Columns.raw(LIKED_DISHES_COLUMNS)) {
+                    filter {
+                        eq("user_id", userId)
+                        eq("swipe_type", "like")
+                    }
+                    order("created_at", Order.DESCENDING)
+                }
+                .decodeList<LikedDishRow>()
+                .mapNotNull { it.dish }
+                .distinctBy { it.id }
+        }
+
     // ───────────────────────── Обробка помилок ─────────────────────────
 
     /**
@@ -210,9 +242,10 @@ class FoodRepositoryImpl(
 
     private fun Exception.toRepositoryException(operation: String): FoodRepositoryException =
         when (this) {
-            // supabase-kt загортає мережеві збої (немає інтернету, DNS, таймаут) у ці типи
+            // Немає інтернету, DNS, таймаут
             is HttpRequestTimeoutException,
-            is HttpRequestException -> FoodRepositoryException.Network(
+            is HttpRequestException,
+            is IOException -> FoodRepositoryException.Network(
                 "[$operation] Проблема з мережею. Перевірте з'єднання та спробуйте ще раз.", this
             )
 
@@ -243,6 +276,10 @@ class FoodRepositoryImpl(
         /** Колонки dish_places + вкладений join на places (один рядок на кожен зв'язок). */
         const val DISH_PLACES_WITH_PLACE_COLUMNS =
             "id,dish_id,place_id,price,places(id,name,address,latitude,longitude,glovo_url,bolt_url)"
+
+        /** Лише вкладена страва: з user_swipes нам потрібен тільки зв'язаний рядок dishes. */
+        const val LIKED_DISHES_COLUMNS =
+            "dishes(id,name,category,image_url,recipe_text,youtube_url)"
     }
 }
 
@@ -250,4 +287,10 @@ class FoodRepositoryImpl(
 @Serializable
 private data class SwipedDishId(
     @SerialName("dish_id") val dishId: String
+)
+
+/** Рядок відповіді getLikedDishes: свайп із вкладеною стравою (ключ = назва таблиці "dishes"). */
+@Serializable
+private data class LikedDishRow(
+    @SerialName("dishes") val dish: Dish? = null
 )

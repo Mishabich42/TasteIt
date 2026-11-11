@@ -47,6 +47,18 @@ interface FoodRepository {
      * Для порожнього запиту повертає порожній список.
      */
     suspend fun searchDishes(query: String): List<Dish>
+
+    /**
+     * Повертає страву за id або `null`, якщо такої немає.
+     * Потрібна меню дій (відкривається і після свайпу, і з пошуку, і з "Улюбленого").
+     */
+    suspend fun getDishById(dishId: String): Dish?
+
+    /**
+     * Страви, які користувач [userId] колись свайпнув вправо (like),
+     * від найновіших до найстаріших, без повторів.
+     */
+    suspend fun getLikedDishes(userId: String): List<Dish>
 }
 
 /**
@@ -59,13 +71,6 @@ interface FoodRepository {
  *
  * Помилки не завершують потік — вони приходять як [Result.failure],
  * тож пошук продовжує працювати після тимчасового збою мережі.
- *
- * Приклад у ViewModel:
- * ```
- * val results: StateFlow<Result<List<Dish>>?> = repository
- *     .searchDishesFlow(queryFlow)
- *     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
- * ```
  */
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 fun FoodRepository.searchDishesFlow(
