@@ -155,7 +155,7 @@ class FoodLocalStore(
     }
 
     companion object {
-        private const val PREFS_NAME = "food_tinder_spoonacular_prefs"
+        private const val PREFS_NAME = "food_tinder_mealdb_prefs"
         private const val KEY_USER_ID = "pref_user_id"
         private const val KEY_SWIPE_DATE = "pref_swipe_date"
         private const val KEY_SWIPED_TODAY_IDS = "pref_swiped_today_ids"

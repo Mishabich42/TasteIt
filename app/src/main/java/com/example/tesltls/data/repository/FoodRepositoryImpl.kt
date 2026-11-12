@@ -2,9 +2,8 @@ package com.example.tesltls.data.repository
 
 import androidx.core.text.HtmlCompat
 import com.example.tesltls.data.local.FoodLocalStore
-import com.example.tesltls.data.remote.spoonacular.SpoonacularApiClient
-import com.example.tesltls.data.remote.spoonacular.SpoonacularRecipeDto
-import com.example.tesltls.data.translation.GoogleTranslationService
+import com.example.tesltls.data.remote.mealdb.MealDbApiClient
+import com.example.tesltls.data.remote.mealdb.MealDto
 import com.example.tesltls.domain.model.AppLanguage
 import com.example.tesltls.domain.model.Dish
 import com.example.tesltls.domain.model.Place
@@ -12,18 +11,18 @@ import com.example.tesltls.domain.model.PlaceWithPrice
 import com.example.tesltls.domain.repository.FoodRepository
 import com.example.tesltls.domain.repository.FoodRepositoryException
 import com.example.tesltls.ui.FoodCategory
+import com.example.tesltls.ui.strings.getAppStrings
 import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
+import com.example.tesltls.data.translation.GoogleTranslationService
 import kotlin.coroutines.cancellation.CancellationException
 
-import com.example.tesltls.ui.strings.getAppStrings
-
 /**
- * Реалізація [FoodRepository] поверх Spoonacular Food API (https://spoonacular.com/food-api)
+ * Реалізація [FoodRepository] поверх TheMealDB API (https://www.themealdb.com/api.php)
  * з автоматичним перекладом через Google Translate.
  */
 class FoodRepositoryImpl(
-    private val apiClient: SpoonacularApiClient,
+    private val apiClient: MealDbApiClient,
     private val localStore: FoodLocalStore,
     private val translationService: GoogleTranslationService
 ) : FoodRepository {
@@ -38,23 +37,48 @@ class FoodRepositoryImpl(
 
     override suspend fun getRandomDish(category: String, userId: String): Dish? =
         safeCall("getRandomDish") {
-            val tag = FoodCategory.toSpoonacularTag(category)
+            val foodCategory = FoodCategory.fromDb(category)
             val swipedIds = localStore.getTodaySwipedDishIds()
 
-            val buffer = categoryBuffers.getOrPut(tag) { mutableListOf() }
+            val buffer = categoryBuffers.getOrPut(category) { mutableListOf() }
 
             // Шукаємо першу страву в буфері, яку користувач ще не свайпав сьогодні
             while (buffer.isNotEmpty()) {
                 val candidate = buffer.removeAt(0)
                 if (candidate.id !in swipedIds) {
-                    rawDishesCache[candidate.id] = candidate
-                    return@safeCall candidate.applyTranslation()
+                    val fullDish = getOrFetchFullDish(candidate)
+                    rawDishesCache[fullDish.id] = fullDish
+                    return@safeCall fullDish.applyTranslation()
                 }
             }
 
-            // Якщо буфер вичерпано — завантажуємо нову порцію страв зі Spoonacular
-            val fetchedDtos = apiClient.getRandomRecipes(tag = tag, number = 8)
-            val newDishes = fetchedDtos.map { it.toDomainDish(categoryFallback = category) }
+            // Якщо буфер вичерпано — шукаємо точно відповідні страви в TheMealDB
+            val candidates = mutableListOf<MealDto>()
+
+            // 1. Пошук за категорією TheMealDB (якщо є прямий відповідник, напр. Pasta, Seafood, Breakfast, Dessert)
+            foodCategory?.mealDbCategory?.let { mealCat ->
+                candidates.addAll(apiClient.getMealsByCategory(mealCat))
+            }
+
+            // 2. Пошук за регіоном/кухнею TheMealDB (напр. Japanese)
+            foodCategory?.mealDbArea?.let { area ->
+                candidates.addAll(apiClient.getMealsByArea(area))
+            }
+
+            // 3. Пошук за релевантними ключовими словами для вибраної категорії
+            val keywords = foodCategory?.searchKeywords ?: listOf(category)
+            for (kw in keywords) {
+                val found = apiClient.searchMeals(kw)
+                candidates.addAll(found)
+            }
+
+            // Fallback: якщо нічого не знайдено — шукаємо за загальним параметром category
+            if (candidates.isEmpty()) {
+                candidates.addAll(apiClient.searchMeals(category))
+            }
+
+            val uniqueMeals = candidates.distinctBy { it.idMeal }.shuffled()
+            val newDishes = uniqueMeals.map { it.toDomainDish(categoryFallback = category) }
 
             for (dish in newDishes) {
                 rawDishesCache[dish.id] = dish
@@ -64,12 +88,13 @@ class FoodRepositoryImpl(
             val unswiped = newDishes.filter { it.id !in swipedIds }
             if (unswiped.isNotEmpty()) {
                 buffer.addAll(unswiped.drop(1))
-                val firstDish = unswiped.first()
+                val firstDish = getOrFetchFullDish(unswiped.first())
+                rawDishesCache[firstDish.id] = firstDish
                 return@safeCall firstDish.applyTranslation()
             }
 
             // Якщо всі виявилися свайпнутими — повертаємо першу доступну або null
-            newDishes.firstOrNull()?.applyTranslation()
+            newDishes.firstOrNull()?.let { getOrFetchFullDish(it).applyTranslation() }
         }
 
     // ───────────────────────── insertSwipe ─────────────────────────
@@ -144,7 +169,7 @@ class FoodRepositoryImpl(
         if (trimmed.isEmpty()) return emptyList()
 
         return safeCall("searchDishes") {
-            val results = apiClient.searchRecipes(trimmed, number = 20)
+            val results = apiClient.searchMeals(trimmed)
             val dishes = results.map { it.toDomainDish() }
             dishes.map { dish ->
                 rawDishesCache[dish.id] = dish
@@ -156,7 +181,16 @@ class FoodRepositoryImpl(
     // ───────────────────────── getDishById ─────────────────────────
 
     override suspend fun getDishById(dishId: String): Dish? {
-        rawDishesCache[dishId]?.let { return it.applyTranslation() }
+        rawDishesCache[dishId]?.let { cached ->
+            if (cached.recipeText.isNullOrBlank() || cached.recipeText.contains("на сайті автора")) {
+                val fetched = fetchFullMealById(dishId)
+                if (fetched != null) {
+                    rawDishesCache[dishId] = fetched
+                    return fetched.applyTranslation()
+                }
+            }
+            return cached.applyTranslation()
+        }
 
         // Перевіряємо збережені улюблені
         val fromLiked = localStore.getLikedDishes().firstOrNull { it.id == dishId }
@@ -165,13 +199,11 @@ class FoodRepositoryImpl(
             return fromLiked.applyTranslation()
         }
 
-        // Завантажуємо зі Spoonacular API за числовим ID
-        val numericId = dishId.toLongOrNull() ?: return null
+        // Завантажуємо з TheMealDB API
         return safeCall("getDishById") {
-            val dto = apiClient.getRecipeInformation(numericId) ?: return@safeCall null
-            val dish = dto.toDomainDish()
-            rawDishesCache[dish.id] = dish
-            dish.applyTranslation()
+            val fetched = fetchFullMealById(dishId) ?: return@safeCall null
+            rawDishesCache[fetched.id] = fetched
+            fetched.applyTranslation()
         }
     }
 
@@ -188,29 +220,42 @@ class FoodRepositoryImpl(
 
     // ───────────────────────── Допоміжні методи ─────────────────────────
 
-    private fun SpoonacularRecipeDto.toDomainDish(categoryFallback: String? = null): Dish {
-        val categoryName = dishTypes.firstOrNull() ?: categoryFallback ?: "food"
+    private suspend fun fetchFullMealById(dishId: String): Dish? {
+        val dto = apiClient.getMealById(dishId) ?: return null
+        return dto.toDomainDish()
+    }
 
-        val rawInstructions = instructions?.takeIf { it.isNotBlank() }
-            ?: summary?.takeIf { it.isNotBlank() }
+    private suspend fun getOrFetchFullDish(dish: Dish): Dish {
+        if (dish.recipeText.isNullOrBlank() || dish.recipeText.contains("на сайті автора")) {
+            val full = fetchFullMealById(dish.id)
+            if (full != null) return full
+        }
+        return dish
+    }
 
+    private fun MealDto.toDomainDish(categoryFallback: String? = null): Dish {
+        val categoryName = strCategory?.takeIf { it.isNotBlank() } ?: categoryFallback ?: "food"
+
+        val rawInstructions = strInstructions?.takeIf { it.isNotBlank() }
         val cleanRecipe = cleanHtml(rawInstructions).ifBlank {
             "Покроковий рецепт доступний на сайті автора."
         }
 
-        val ytQuery = title.replace("+", " ").trim()
-        val encodedYt = try {
-            URLEncoder.encode("$ytQuery recipe", "UTF-8")
-        } catch (_: Exception) {
-            title
+        val youtube = strYoutube?.takeIf { it.isNotBlank() } ?: run {
+            val ytQuery = strMeal.replace("+", " ").trim()
+            val encodedYt = try {
+                URLEncoder.encode("$ytQuery recipe", "UTF-8")
+            } catch (_: Exception) {
+                strMeal
+            }
+            "https://www.youtube.com/results?search_query=$encodedYt"
         }
-        val youtube = "https://www.youtube.com/results?search_query=$encodedYt"
 
         return Dish(
-            id = id.toString(),
-            name = title,
+            id = idMeal,
+            name = strMeal,
             category = categoryName,
-            imageUrl = image,
+            imageUrl = strMealThumb,
             recipeText = cleanRecipe,
             youtubeUrl = youtube
         )

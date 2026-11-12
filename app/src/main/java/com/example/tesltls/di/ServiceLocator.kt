@@ -4,7 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import com.example.tesltls.BuildConfig
 import com.example.tesltls.data.local.FoodLocalStore
-import com.example.tesltls.data.remote.spoonacular.SpoonacularApiClient
+import com.example.tesltls.data.remote.mealdb.MealDbApiClient
 import com.example.tesltls.data.repository.FoodRepositoryImpl
 import com.example.tesltls.data.translation.GoogleTranslationService
 import com.example.tesltls.domain.repository.FoodRepository
@@ -15,7 +15,7 @@ import io.github.jan.supabase.postgrest.Postgrest
 
 /**
  * Єдине місце створення залежностей застосунку.
- * Працює на базі Spoonacular Food API (https://spoonacular.com/food-api)
+ * Працює на базі TheMealDB API (https://www.themealdb.com/api.php)
  * та локального сховища для збереження свайпів і улюблених страв.
  */
 object ServiceLocator {
@@ -41,13 +41,13 @@ object ServiceLocator {
         GoogleTranslationService()
     }
 
-    val spoonacularApiClient: SpoonacularApiClient by lazy {
-        SpoonacularApiClient { BuildConfig.SPOONACULAR_API_KEY }
+    val mealDbApiClient: MealDbApiClient by lazy {
+        MealDbApiClient()
     }
 
     val foodRepository: FoodRepository by lazy {
         FoodRepositoryImpl(
-            apiClient = spoonacularApiClient,
+            apiClient = mealDbApiClient,
             localStore = localStore,
             translationService = translationService
         )
