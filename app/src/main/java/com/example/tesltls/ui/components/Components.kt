@@ -1,10 +1,14 @@
 package com.example.tesltls.ui.components
 
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -251,21 +255,58 @@ fun DishImage(
     }
 }
 
-/** Рядок зі стравою (результати пошуку, "Улюблене"). */
+/** Рядок зі стравою (результати пошуку, "Улюблене") з підтримкою тривалого натискання та вибору. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun DishRow(dish: Dish, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun DishRow(
+    dish: Dish,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
+    isSelected: Boolean = false,
+    isSelectionMode: Boolean = false
+) {
     val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
     val cat = FoodCategory.fromDb(dish.category)
     val catTitle = cat?.let { strings.categoryTitle(it) } ?: dish.category
+
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background((cat?.color ?: FoodColors.Pill).copy(alpha = 0.6f))
-            .clickable(onClick = onClick)
+            .background(
+                if (isSelected) FoodColors.GreenSoft
+                else (cat?.color ?: FoodColors.Pill).copy(alpha = 0.6f)
+            )
+            .then(
+                if (isSelected) {
+                    Modifier.border(2.dp, FoodColors.Green, RoundedCornerShape(20.dp))
+                } else {
+                    Modifier
+                }
+            )
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (isSelectionMode) {
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(if (isSelected) FoodColors.Green else FoodColors.SearchField),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isSelected) {
+                    AppIcon(R.drawable.ic_check, tint = Color.White, size = 14.dp)
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+        }
+
         DishImage(
             url = dish.imageUrl,
             category = dish.category,
@@ -289,7 +330,9 @@ fun DishRow(dish: Dish, onClick: () -> Unit, modifier: Modifier = Modifier) {
                 overflow = TextOverflow.Ellipsis
             )
         }
-        AppIcon(R.drawable.ic_chevron_right, tint = FoodColors.TextSecondary, size = 20.dp)
+        if (!isSelectionMode) {
+            AppIcon(R.drawable.ic_chevron_right, tint = FoodColors.TextSecondary, size = 20.dp)
+        }
     }
 }
 

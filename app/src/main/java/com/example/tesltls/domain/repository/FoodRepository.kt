@@ -67,6 +67,11 @@ interface FoodRepository {
      * від найновіших до найстаріших, без повторів.
      */
     suspend fun getLikedDishes(userId: String): List<Dish>
+
+    /**
+     * Видаляє вибрані страви [dishIds] з улюблених.
+     */
+    suspend fun removeLikedDishes(userId: String, dishIds: List<String>)
 }
 
 /**

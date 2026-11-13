@@ -263,6 +263,12 @@ class FoodRepositoryImpl(
             }
         }
 
+    override suspend fun removeLikedDishes(userId: String, dishIds: List<String>) {
+        safeCall("removeLikedDishes") {
+            localStore.removeLikedDishes(dishIds.toSet())
+        }
+    }
+
     // ───────────────────────── Допоміжні методи ─────────────────────────
 
     private suspend fun fetchFullMealById(dishId: String): Dish? {

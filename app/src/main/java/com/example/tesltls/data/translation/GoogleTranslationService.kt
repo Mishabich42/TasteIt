@@ -95,6 +95,8 @@ class GoogleTranslationService {
                     name = translatedName,
                     recipeText = translatedRecipe
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.w("GeminiTranslate", "Gemini failed, falling back to ML Kit: ${e.message}")
                 fallbackMlKitTranslateDish(dish, target)
@@ -178,23 +180,27 @@ class GoogleTranslationService {
     }
 
     private suspend fun callGeminiApi(prompt: String): String {
-        val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=$apiKey"
-        val request = GeminiRequest(
-            contents = listOf(
-                GeminiContent(
-                    parts = listOf(GeminiPart(text = prompt))
+        return try {
+            val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=$apiKey"
+            val request = GeminiRequest(
+                contents = listOf(
+                    GeminiContent(
+                        parts = listOf(GeminiPart(text = prompt))
+                    )
                 )
             )
-        )
 
-        val response = client.post(url) {
-            contentType(ContentType.Application.Json)
-            setBody(Json.encodeToString(request))
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(Json.encodeToString(request))
+            }
+
+            val responseString = response.bodyAsText()
+            val geminiResponse = Json { ignoreUnknownKeys = true }.decodeFromString<GeminiResponse>(responseString)
+            geminiResponse.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text.orEmpty()
+        } catch (e: CancellationException) {
+            throw e
         }
-
-        val responseString = response.bodyAsText()
-        val geminiResponse = Json { ignoreUnknownKeys = true }.decodeFromString<GeminiResponse>(responseString)
-        return geminiResponse.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text.orEmpty()
     }
 
     private fun parseGeminiResponse(text: String): Map<String, String> {

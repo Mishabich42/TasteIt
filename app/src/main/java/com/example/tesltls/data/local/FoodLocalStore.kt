@@ -145,6 +145,17 @@ class FoodLocalStore(
         }
     }
 
+    fun removeLikedDishes(dishIds: Set<String>) {
+        val p = prefs
+        if (p != null) {
+            val liked = getLikedDishes().toMutableList()
+            liked.removeAll { it.id in dishIds }
+            saveLikedDishes(liked)
+        } else {
+            memLikedDishes.removeAll { it.id in dishIds }
+        }
+    }
+
     private fun saveLikedDishes(dishes: List<Dish>) {
         val p = prefs ?: return
         try {
