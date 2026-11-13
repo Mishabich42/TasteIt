@@ -1,7 +1,6 @@
 package com.example.tesltls.ui.profile
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,12 +17,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,7 +47,6 @@ fun ProfileScreen() {
     val strings = LocalAppStrings.current
     val localStore = ServiceLocator.localStore
     val currentLanguage by localStore.selectedLanguage.collectAsStateWithLifecycle()
-    val isAutoTranslate by localStore.autoTranslateEnabled.collectAsStateWithLifecycle()
 
     val userId by produceState<String?>(initialValue = null) {
         value = try {
@@ -103,7 +104,7 @@ fun ProfileScreen() {
             Spacer(Modifier.height(20.dp))
         }
 
-        // ── Блок Google Translate та автоперекладу ──
+        // ── Блок Google Translate (Gemini API) ──
         item {
             Column(
                 modifier = Modifier
@@ -133,7 +134,7 @@ fun ProfileScreen() {
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
                                 Text(
-                                    text = "API",
+                                    text = "Gemini API",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = FoodColors.Green
@@ -148,23 +149,12 @@ fun ProfileScreen() {
                             lineHeight = 18.sp
                         )
                     }
-                    Spacer(Modifier.width(12.dp))
-                    Switch(
-                        checked = isAutoTranslate,
-                        onCheckedChange = { localStore.setAutoTranslate(it) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = FoodColors.Green,
-                            uncheckedThumbColor = Color.White,
-                            uncheckedTrackColor = FoodColors.Divider
-                        )
-                    )
                 }
             }
             Spacer(Modifier.height(20.dp))
         }
 
-        // ── Вибір мови перекладу ──
+        // ── Вибір мови перекладу (Випадаючий список) ──
         item {
             Text(
                 text = strings.languageSectionTitle,
@@ -173,63 +163,88 @@ fun ProfileScreen() {
                 color = FoodColors.TextPrimary,
                 modifier = Modifier.padding(bottom = 12.dp)
             )
-        }
 
-        items(AppLanguage.entries.size) { index ->
-            val language = AppLanguage.entries[index]
-            val isSelected = language == currentLanguage
+            var expanded by remember { mutableStateOf(false) }
 
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(if (isSelected) FoodColors.CardGreen else FoodColors.CardNeutral)
-                    .then(
-                        if (isSelected) {
-                            Modifier.border(1.5.dp, FoodColors.Green, RoundedCornerShape(18.dp))
-                        } else {
-                            Modifier
-                        }
-                    )
-                    .clickable { localStore.setLanguage(language) }
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .background(FoodColors.CardNeutral)
+                    .clickable { expanded = true }
+                    .padding(horizontal = 16.dp, vertical = 16.dp)
             ) {
-                Text(
-                    text = language.flagEmoji,
-                    fontSize = 24.sp
-                )
-                Spacer(Modifier.width(14.dp))
-                Column(Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = language.displayName,
-                        fontSize = 16.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = FoodColors.TextPrimary
+                        text = currentLanguage.flagEmoji,
+                        fontSize = 24.sp
                     )
-                    Text(
-                        text = language.code.uppercase(),
-                        fontSize = 11.sp,
-                        color = FoodColors.TextSecondary
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = currentLanguage.displayName,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = FoodColors.TextPrimary
+                        )
+                        Text(
+                            text = currentLanguage.code.uppercase(),
+                            fontSize = 11.sp,
+                            color = FoodColors.TextSecondary
+                        )
+                    }
+                    AppIcon(
+                        id = R.drawable.ic_chevron_right,
+                        tint = FoodColors.TextSecondary,
+                        size = 20.dp
                     )
                 }
-                if (isSelected) {
-                    Box(
-                        modifier = Modifier
-                            .size(26.dp)
-                            .clip(CircleShape)
-                            .background(FoodColors.Green),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        AppIcon(
-                            id = R.drawable.ic_check,
-                            tint = Color.White,
-                            size = 14.dp
+
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier
+                        .background(FoodColors.CardNeutral)
+                        .width(280.dp)
+                ) {
+                    AppLanguage.entries.forEach { language ->
+                        val isSelected = language == currentLanguage
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(text = language.flagEmoji, fontSize = 22.sp)
+                                    Spacer(Modifier.width(12.dp))
+                                    Text(
+                                        text = language.displayName,
+                                        fontSize = 15.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = FoodColors.TextPrimary,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    if (isSelected) {
+                                        AppIcon(
+                                            id = R.drawable.ic_check,
+                                            tint = FoodColors.Green,
+                                            size = 16.dp
+                                        )
+                                    }
+                                }
+                            },
+                            onClick = {
+                                localStore.setLanguage(language)
+                                expanded = false
+                            }
                         )
                     }
                 }
             }
+            Spacer(Modifier.height(16.dp))
         }
 
         item {
