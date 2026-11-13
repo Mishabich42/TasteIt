@@ -32,6 +32,7 @@ data class AppStrings(
     val catSandwiches: String,
     val catDesserts: String,
     val catBakery: String,
+    val catRandom: String,
 
     // Свайп
     val swipeHint: String,
@@ -105,6 +106,7 @@ data class AppStrings(
         FoodCategory.SANDWICHES -> catSandwiches
         FoodCategory.DESSERTS -> catDesserts
         FoodCategory.BAKERY -> catBakery
+        FoodCategory.RANDOM -> catRandom
     }
 
     fun selectPlaceHeader(serviceTitle: String): String = "$serviceTitle: $selectPlace"
@@ -136,6 +138,7 @@ fun getAppStrings(language: AppLanguage): AppStrings = when (language) {
         catSandwiches = "Сендвічі",
         catDesserts = "Десерти",
         catBakery = "Випічка",
+        catRandom = "Випадково",
         swipeHint = "Вліво — пропустити, вправо — обрати",
         swipeEmptyMessage = "На сьогодні всі страви цієї категорії переглянуто. Завітайте завтра або оберіть іншу категорію.",
         toMenu = "До меню",
@@ -207,6 +210,7 @@ fun getAppStrings(language: AppLanguage): AppStrings = when (language) {
         catSandwiches = "Sandwiches",
         catDesserts = "Desserts",
         catBakery = "Bakery",
+        catRandom = "Random",
         swipeHint = "Left to skip, right to choose",
         swipeEmptyMessage = "All dishes in this category have been viewed today. Come back tomorrow or pick another category.",
         toMenu = "To Menu",
@@ -278,6 +282,7 @@ fun getAppStrings(language: AppLanguage): AppStrings = when (language) {
         catSandwiches = "Kanapki",
         catDesserts = "Desery",
         catBakery = "Wypieki",
+        catRandom = "Losowo",
         swipeHint = "W lewo — odrzuć, w prawo — wybierz",
         swipeEmptyMessage = "Przejrzano wszystkie dania z tej kategorii na dziś. Wróć jutro lub wybierz inną категоріę.",
         toMenu = "Do menu",
@@ -349,6 +354,7 @@ fun getAppStrings(language: AppLanguage): AppStrings = when (language) {
         catSandwiches = "Sandwiches",
         catDesserts = "Desserts",
         catBakery = "Backwaren",
+        catRandom = "Zufällig",
         swipeHint = "Links — überspringen, rechts — auswählen",
         swipeEmptyMessage = "Alle Gerichte dieser Kategorie wurden heute angesehen. Schau morgen wieder vorbei oder wähle eine andere.",
         toMenu = "Zum Menü",
@@ -420,6 +426,7 @@ fun getAppStrings(language: AppLanguage): AppStrings = when (language) {
         catSandwiches = "Sándwiches",
         catDesserts = "Postres",
         catBakery = "Panadería",
+        catRandom = "Aleatorio",
         swipeHint = "Izquierda para omitir, derecha para elegir",
         swipeEmptyMessage = "Todos los platos de esta categoría han sido vistos hoy. Vuelve mañana o elige otra categoría.",
         toMenu = "Al menú",
@@ -491,6 +498,7 @@ fun getAppStrings(language: AppLanguage): AppStrings = when (language) {
         catSandwiches = "Sandwichs",
         catDesserts = "Desserts",
         catBakery = "Boulangerie",
+        catRandom = "Aléatoire",
         swipeHint = "Gauche pour passer, droite pour choisir",
         swipeEmptyMessage = "Tous les plats de cette catégorie ont été vus aujourd'hui. Revenez demain ou choisissez une autre.",
         toMenu = "Au menu",
@@ -562,6 +570,7 @@ fun getAppStrings(language: AppLanguage): AppStrings = when (language) {
         catSandwiches = "Tramezzini",
         catDesserts = "Dolci",
         catBakery = "Panetteria",
+        catRandom = "Casuale",
         swipeHint = "Sinistra per saltare, destra per scegliere",
         swipeEmptyMessage = "Tutti i piatti di questa categoria sono stati visti oggi. Torna domani o scegline un'altra.",
         toMenu = "Al menu",

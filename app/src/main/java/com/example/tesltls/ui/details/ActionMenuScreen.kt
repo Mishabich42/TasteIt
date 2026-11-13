@@ -91,7 +91,6 @@ fun ActionMenuScreen(
         }
     }
 
-    val hasGlovo = state.places.any { it.place.deliveryUrl(DeliveryService.GLOVO) != null }
     val hasBolt = state.places.any { it.place.deliveryUrl(DeliveryService.BOLT) != null }
 
     Column(
@@ -151,20 +150,12 @@ fun ActionMenuScreen(
             subtitle = strings.deliverySub
         ) {
             Spacer(Modifier.height(14.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                LinkPill(
-                    label = DeliveryService.GLOVO.title,
-                    modifier = Modifier.weight(1f),
-                    enabled = hasGlovo,
-                    onClick = { onDeliveryClick(DeliveryService.GLOVO) }
-                )
-                LinkPill(
-                    label = DeliveryService.BOLT.title,
-                    modifier = Modifier.weight(1f),
-                    enabled = hasBolt,
-                    onClick = { onDeliveryClick(DeliveryService.BOLT) }
-                )
-            }
+            LinkPill(
+                label = DeliveryService.BOLT.title,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = hasBolt,
+                onClick = { onDeliveryClick(DeliveryService.BOLT) }
+            )
             Spacer(Modifier.height(10.dp))
             Text(
                 text = strings.deliveryAvailabilityNote,

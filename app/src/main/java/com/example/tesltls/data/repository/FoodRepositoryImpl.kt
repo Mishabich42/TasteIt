@@ -47,6 +47,27 @@ class FoodRepositoryImpl(
             val foodCategory = FoodCategory.fromDb(category)
             val swipedIds = localStore.getTodaySwipedDishIds()
 
+            // Якщо вибрано категорію "Випадково" (Random)
+            if (foodCategory == FoodCategory.RANDOM || category.equals("Random", ignoreCase = true)) {
+                repeat(6) {
+                    val randomMeal = apiClient.getRandomMeal()
+                    if (randomMeal != null) {
+                        val dish = randomMeal.toDomainDish(categoryFallback = "random")
+                        if (dish.id !in swipedIds) {
+                            rawDishesCache[dish.id] = dish
+                            return@safeCall dish.applyTranslation()
+                        }
+                    }
+                }
+                val meal = apiClient.getRandomMeal()
+                if (meal != null) {
+                    val dish = meal.toDomainDish(categoryFallback = "random")
+                    rawDishesCache[dish.id] = dish
+                    return@safeCall dish.applyTranslation()
+                }
+                return@safeCall null
+            }
+
             val buffer = categoryBuffers.getOrPut(category) { mutableListOf() }
 
             // Шукаємо першу страву в буфері, яку користувач ще не свайпав сьогодні
@@ -129,19 +150,9 @@ class FoodRepositoryImpl(
 
             val strings = getAppStrings(localStore.selectedLanguage.value)
 
+            val boltUrl = "https://food.bolt.eu/search?query=$encodedName"
+
             listOf(
-                PlaceWithPrice(
-                    place = Place(
-                        id = "delivery_glovo_$dishId",
-                        name = "Glovo",
-                        address = strings.glovoAddress,
-                        latitude = 50.4501,
-                        longitude = 30.5234,
-                        glovoUrl = "https://glovoapp.com/ua/uk/kyiv/search/?query=$encodedName",
-                        boltUrl = null
-                    ),
-                    price = null
-                ),
                 PlaceWithPrice(
                     place = Place(
                         id = "delivery_bolt_$dishId",
@@ -150,7 +161,7 @@ class FoodRepositoryImpl(
                         latitude = 50.4501,
                         longitude = 30.5234,
                         glovoUrl = null,
-                        boltUrl = "https://food.bolt.eu/search?query=$encodedName"
+                        boltUrl = boltUrl
                     ),
                     price = null
                 ),
