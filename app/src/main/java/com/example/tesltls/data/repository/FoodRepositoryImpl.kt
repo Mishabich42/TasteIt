@@ -15,11 +15,18 @@ import com.example.tesltls.ui.strings.getAppStrings
 import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
 import com.example.tesltls.data.translation.GoogleTranslationService
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.last
+import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Реалізація [FoodRepository] поверх TheMealDB API (https://www.themealdb.com/api.php)
- * з автоматичним перекладом через Google Translate.
+ * з покроковим (прогресивним) асинхронним перекладом пошукових результатів.
  */
 class FoodRepositoryImpl(
     private val apiClient: MealDbApiClient,
@@ -55,12 +62,12 @@ class FoodRepositoryImpl(
             // Якщо буфер вичерпано — шукаємо точно відповідні страви в TheMealDB
             val candidates = mutableListOf<MealDto>()
 
-            // 1. Пошук за категорією TheMealDB (якщо є прямий відповідник, напр. Pasta, Seafood, Breakfast, Dessert)
+            // 1. Пошук за категорією TheMealDB
             foodCategory?.mealDbCategory?.let { mealCat ->
                 candidates.addAll(apiClient.getMealsByCategory(mealCat))
             }
 
-            // 2. Пошук за регіоном/кухнею TheMealDB (напр. Japanese)
+            // 2. Пошук за регіоном/кухнею TheMealDB
             foodCategory?.mealDbArea?.let { area ->
                 candidates.addAll(apiClient.getMealsByArea(area))
             }
@@ -162,21 +169,55 @@ class FoodRepositoryImpl(
             )
         }
 
-    // ───────────────────────── searchDishes ─────────────────────────
+    // ───────────────────────── searchDishesProgressive ─────────────────────────
 
-    override suspend fun searchDishes(query: String): List<Dish> {
+    override fun searchDishesProgressive(query: String): Flow<List<Dish>> = flow {
         val trimmed = query.trim()
-        if (trimmed.isEmpty()) return emptyList()
+        if (trimmed.isEmpty()) {
+            emit(emptyList())
+            return@flow
+        }
 
-        return safeCall("searchDishes") {
-            val results = apiClient.searchMeals(trimmed)
-            val dishes = results.map { it.toDomainDish() }
-            dishes.map { dish ->
-                rawDishesCache[dish.id] = dish
-                dish.applyTranslation()
+        val targetLang = localStore.selectedLanguage.value
+
+        // 1. Автоматично перекладаємо пошуковий запит на англійську для TheMealDB API
+        val englishQuery = translationService.translateToEnglish(trimmed, targetLang)
+
+        // 2. Отримуємо результати з TheMealDB API
+        var results = apiClient.searchMeals(englishQuery)
+
+        // Фолбек: якщо за англійським перекладом нічого не знайшли, пробуємо оригінальний запит
+        if (results.isEmpty() && englishQuery != trimmed) {
+            results = apiClient.searchMeals(trimmed)
+        }
+
+        val rawDishes = results.map { it.toDomainDish() }
+        for (dish in rawDishes) {
+            rawDishesCache[dish.id] = dish
+        }
+
+        // 3. НЕГАЙНО відображаємо всі знайдені страви на екрані за 0 мс
+        val currentDishes = rawDishes.toMutableList()
+        emit(currentDishes.toList())
+
+        // 4. Порезультатно асинхронно перекладаємо кожну страву та емітимо оновлення
+        coroutineScope {
+            rawDishes.forEachIndexed { index, dish ->
+                launch {
+                    try {
+                        val translated = dish.applyTranslation()
+                        if (translated != currentDishes[index]) {
+                            currentDishes[index] = translated
+                            emit(currentDishes.toList())
+                        }
+                    } catch (_: Exception) {}
+                }
             }
         }
     }
+
+    override suspend fun searchDishes(query: String): List<Dish> =
+        searchDishesProgressive(query).last()
 
     // ───────────────────────── getDishById ─────────────────────────
 
@@ -212,9 +253,13 @@ class FoodRepositoryImpl(
     override suspend fun getLikedDishes(userId: String): List<Dish> =
         safeCall("getLikedDishes") {
             val liked = localStore.getLikedDishes()
-            liked.map { dish ->
-                rawDishesCache[dish.id] = dish
-                dish.applyTranslation()
+            coroutineScope {
+                liked.map { dish ->
+                    async {
+                        rawDishesCache[dish.id] = dish
+                        dish.applyTranslation()
+                    }
+                }.awaitAll()
             }
         }
 

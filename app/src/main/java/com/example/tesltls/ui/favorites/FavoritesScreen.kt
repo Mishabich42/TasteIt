@@ -18,6 +18,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import com.example.tesltls.data.local.FoodLocalStore
+import com.example.tesltls.di.ServiceLocator
 import com.example.tesltls.domain.model.Dish
 import com.example.tesltls.domain.repository.FoodRepository
 import com.example.tesltls.ui.common.toUserMessage
@@ -44,6 +46,7 @@ sealed interface FavoritesUiState {
 /** "Улюблене" = страви, які користувач колись свайпнув вправо (like). */
 class FavoritesViewModel(
     private val repository: FoodRepository,
+    private val localStore: FoodLocalStore = ServiceLocator.localStore,
     private val userId: suspend () -> String
 ) : ViewModel() {
 
@@ -52,16 +55,37 @@ class FavoritesViewModel(
 
     fun refresh() {
         viewModelScope.launch {
-            // Якщо список уже показаний — оновлюємо тихо, без спінера
-            if (_state.value !is FavoritesUiState.Content) _state.value = FavoritesUiState.Loading
             try {
-                val dishes = repository.getLikedDishes(userId())
-                _state.value =
-                    if (dishes.isEmpty()) FavoritesUiState.Empty else FavoritesUiState.Content(dishes)
+                // 1. Спочатку дістаємо локальні збережені улюблені страви
+                val rawLiked = localStore.getLikedDishes()
+                if (rawLiked.isEmpty()) {
+                    _state.value = FavoritesUiState.Empty
+                    return@launch
+                }
+
+                // 2. НЕГАЙНО відображаємо список усіх улюблених страв за 0 мс (без блокування на завантаження/переклад)
+                val currentDishes = rawLiked.toMutableList()
+                _state.value = FavoritesUiState.Content(currentDishes.toList())
+
+                // 3. Для кожної страви ОКРЕМО й асинхронно запускаємо переклад
+                // Як тільки будь-яка страва перекладеться, її назва миттєво оновлюється у списку
+                rawLiked.forEachIndexed { index, dish ->
+                    launch {
+                        try {
+                            val translated = repository.getDishById(dish.id) ?: dish
+                            if (translated != currentDishes[index]) {
+                                currentDishes[index] = translated
+                                _state.value = FavoritesUiState.Content(currentDishes.toList())
+                            }
+                        } catch (_: Exception) {}
+                    }
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _state.value = FavoritesUiState.Error(e.toUserMessage())
+                if (_state.value !is FavoritesUiState.Content) {
+                    _state.value = FavoritesUiState.Error(e.toUserMessage())
+                }
             }
         }
     }

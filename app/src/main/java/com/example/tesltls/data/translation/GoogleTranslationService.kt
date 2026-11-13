@@ -11,6 +11,7 @@ import com.google.mlkit.nl.translate.Translator
 import com.google.mlkit.nl.translate.TranslatorOptions
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
@@ -20,34 +21,55 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.tasks.await
 
 /**
- * Сервіс перекладу страв та рецептів через Google Gemini API (gemini-3.1-flash-lite)
- * з автоматичним резервним fallback на Google ML Kit Translate.
+ * Оптимізований сервіс перекладу страв та рецептів через Google Gemini API (gemini-3.1-flash-lite)
+ * з розширеним тайм-аутом, миттєвим кешуванням готових об'єктів страв та ML Kit fallback.
  */
 class GoogleTranslationService {
 
-    private val client = HttpClient(OkHttp)
+    private val client = HttpClient(OkHttp) {
+        install(HttpTimeout) {
+            requestTimeoutMillis = 60_000
+            connectTimeoutMillis = 30_000
+            socketTimeoutMillis = 60_000
+        }
+        engine {
+            config {
+                connectTimeout(30, TimeUnit.SECONDS)
+                readTimeout(60, TimeUnit.SECONDS)
+                writeTimeout(30, TimeUnit.SECONDS)
+            }
+        }
+    }
+
     private val apiKey: String = BuildConfig.GEMINI_API_KEY
 
-    // Кеш перекладених текстів: key = "${langCode}_$originalText"
+    // Кеш перекладених об'єктів страв: key = "${langCode}_${dish.id}"
+    private val translatedDishCache = ConcurrentHashMap<String, Dish>()
+
+    // Кеш перекладених окремих текстів: key = "${langCode}_$originalText"
     private val translationCache = ConcurrentHashMap<String, String>()
 
     // Клієнти перекладачів за цільовою мовою (для ML Kit fallback)
     private val translators = ConcurrentHashMap<String, Translator>()
+    private val reverseTranslators = ConcurrentHashMap<String, Translator>()
     private val downloadConditions = DownloadConditions.Builder().build()
 
     /**
      * Перекладає назву та текст рецепту страви [dish] на мову [target].
-     * Спочатку намагається використати Gemini API, а при помилці чи відсутності ключа — ML Kit.
+     * Працює з миттєвим кешуванням об'єкта Dish за 0 ms.
      */
     suspend fun translateDish(dish: Dish, target: AppLanguage): Dish {
         if (target == AppLanguage.ENGLISH) return dish
 
-        // 1. Пробуємо Gemini API
-        if (apiKey.isNotBlank()) {
+        val dishCacheKey = "${target.code}_${dish.id}"
+        translatedDishCache[dishCacheKey]?.let { return it }
+
+        val resultDish: Dish = if (apiKey.isNotBlank()) {
             try {
                 val prompt = """
                     You are a professional culinary translator. Translate the following dish name and recipe instructions into ${target.displayName} (${target.code}).
@@ -69,16 +91,23 @@ class GoogleTranslationService {
                 val translatedName = parsed["name"]?.takeIf { it.isNotBlank() } ?: translate(dish.name, target)
                 val translatedRecipe = parsed["recipe"]?.takeIf { it.isNotBlank() } ?: dish.recipeText?.let { if (it.isNotBlank()) translate(it, target) else it }
 
-                return dish.copy(
+                dish.copy(
                     name = translatedName,
                     recipeText = translatedRecipe
                 )
             } catch (e: Exception) {
                 Log.w("GeminiTranslate", "Gemini failed, falling back to ML Kit: ${e.message}")
+                fallbackMlKitTranslateDish(dish, target)
             }
+        } else {
+            fallbackMlKitTranslateDish(dish, target)
         }
 
-        // 2. Fallback на ML Kit Translate
+        translatedDishCache[dishCacheKey] = resultDish
+        return resultDish
+    }
+
+    private suspend fun fallbackMlKitTranslateDish(dish: Dish, target: AppLanguage): Dish {
         val translatedName = translate(dish.name, target)
         val translatedRecipe = dish.recipeText?.let {
             if (it.isNotBlank()) translate(it, target) else it
@@ -88,6 +117,39 @@ class GoogleTranslationService {
             name = translatedName,
             recipeText = translatedRecipe
         )
+    }
+
+    /**
+     * Перекладає пошуковий запит з мови користувача [source] на англійську для пошуку в TheMealDB
+     * виключно через локальний Google ML Kit Translate для миттєвого відгуку.
+     */
+    suspend fun translateToEnglish(query: String, source: AppLanguage): String {
+        val trimmed = query.trim()
+        if (trimmed.isBlank() || source == AppLanguage.ENGLISH) {
+            return trimmed
+        }
+
+        val cacheKey = "TO_EN_${source.code}_$trimmed"
+        translationCache[cacheKey]?.let { return it }
+
+        return try {
+            val translator = reverseTranslators.getOrPut(source.code) {
+                val options = TranslatorOptions.Builder()
+                    .setSourceLanguage(source.mlKitCode)
+                    .setTargetLanguage(TranslateLanguage.ENGLISH)
+                    .build()
+                Translation.getClient(options)
+            }
+            translator.downloadModelIfNeeded(downloadConditions).await()
+            val translated = translator.translate(trimmed).await().trim()
+            translationCache[cacheKey] = translated
+            translated
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w("GoogleTranslate", "Помилка перекладу на англійську (${source.code}): ${e.message}")
+            trimmed
+        }
     }
 
     /**

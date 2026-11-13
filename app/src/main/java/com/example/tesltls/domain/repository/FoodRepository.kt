@@ -6,8 +6,11 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 
@@ -15,7 +18,7 @@ import kotlinx.coroutines.flow.mapLatest
  * Контракт доступу до даних застосунку "Food Tinder".
  *
  * Усі методи — `suspend` і безпечні для виклику з головного потоку
- * (мережеві виклики supabase-kt виконуються на Ktor-диспетчері).
+ * (мережеві виклики виконані асинхронно).
  *
  * У разі помилки методи кидають [FoodRepositoryException];
  * [kotlinx.coroutines.CancellationException] завжди прокидається далі без змін.
@@ -49,8 +52,13 @@ interface FoodRepository {
     suspend fun searchDishes(query: String): List<Dish>
 
     /**
+     * Покроковий (прогресивний) пошук страв: повертає потік, який спочатку миттєво
+     * емітить первинні результати за 0 мс, а потім оновлює переклад кожної страви по мірі готовності.
+     */
+    fun searchDishesProgressive(query: String): Flow<List<Dish>>
+
+    /**
      * Повертає страву за id або `null`, якщо такої немає.
-     * Потрібна меню дій (відкривається і після свайпу, і з пошуку, і з "Улюбленого").
      */
     suspend fun getDishById(dishId: String): Dish?
 
@@ -62,15 +70,13 @@ interface FoodRepository {
 }
 
 /**
- * Реактивний пошук для рядка пошуку на екрані.
+ * Реактивний покроковий пошук для рядка пошуку на екрані.
  *
  * Приймає потік тексту, який вводить користувач, і:
- *  1. чекає [debounceMs] мс після останнього символу (щоб не слати запит на кожну літеру);
+ *  1. чекає [debounceMs] мс після останнього символу;
  *  2. ігнорує повторення того самого запиту;
- *  3. скасовує попередній незавершений запит, коли приходить новий (`mapLatest`).
- *
- * Помилки не завершують потік — вони приходять як [Result.failure],
- * тож пошук продовжує працювати після тимчасового збою мережі.
+ *  3. скасовує попередній незавершений запит при новому вводі;
+ *  4. НЕГАЙНО видає знайдені страви, оновлюючи переклад кожної окремо в реальному часі.
  */
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 fun FoodRepository.searchDishesFlow(
@@ -81,12 +87,15 @@ fun FoodRepository.searchDishesFlow(
         .map { it.trim() }
         .debounce(debounceMs)
         .distinctUntilChanged()
-        .mapLatest { query ->
-            try {
-                Result.success(searchDishes(query))
-            } catch (e: CancellationException) {
-                throw e // не "ковтаємо" скасування корутини
-            } catch (e: FoodRepositoryException) {
-                Result.failure(e)
+        .flatMapLatest { query ->
+            if (query.isBlank()) {
+                flowOf(Result.success(emptyList()))
+            } else {
+                searchDishesProgressive(query)
+                    .map { Result.success(it) }
+                    .catch { e ->
+                        if (e is CancellationException) throw e
+                        emit(Result.failure(if (e is FoodRepositoryException) e else FoodRepositoryException.Unknown(e.message.orEmpty(), e)))
+                    }
             }
         }
