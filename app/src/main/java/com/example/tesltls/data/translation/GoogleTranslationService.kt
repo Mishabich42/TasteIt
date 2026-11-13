@@ -20,6 +20,7 @@ import io.ktor.http.contentType
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.cancellation.CancellationException
@@ -91,10 +92,11 @@ class GoogleTranslationService {
                 val translatedName = parsed["name"]?.takeIf { it.isNotBlank() } ?: translate(dish.name, target)
                 val translatedRecipe = parsed["recipe"]?.takeIf { it.isNotBlank() } ?: dish.recipeText?.let { if (it.isNotBlank()) translate(it, target) else it }
 
-                dish.copy(
+                val updated = dish.copy(
                     name = translatedName,
                     recipeText = translatedRecipe
                 )
+                updateYoutubeUrl(updated, translatedName)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -115,10 +117,26 @@ class GoogleTranslationService {
             if (it.isNotBlank()) translate(it, target) else it
         }
 
-        return dish.copy(
+        val updated = dish.copy(
             name = translatedName,
             recipeText = translatedRecipe
         )
+        return updateYoutubeUrl(updated, translatedName)
+    }
+
+    private fun updateYoutubeUrl(dish: Dish, translatedName: String): Dish {
+        val ytQuery = "$translatedName recipe"
+        val encodedYt = try {
+            URLEncoder.encode(ytQuery, "UTF-8")
+        } catch (_: Exception) {
+            ytQuery
+        }
+        val translatedYoutube = if (dish.youtubeUrl.isNullOrBlank() || dish.youtubeUrl.contains("youtube.com/results")) {
+            "https://www.youtube.com/results?search_query=$encodedYt"
+        } else {
+            dish.youtubeUrl
+        }
+        return dish.copy(youtubeUrl = translatedYoutube)
     }
 
     /**
@@ -151,23 +169,6 @@ class GoogleTranslationService {
         } catch (e: Exception) {
             Log.w("GoogleTranslate", "Помилка перекладу на англійську (${source.code}): ${e.message}")
             trimmed
-        }
-    }
-
-    /**
-     * Генерує оптимізований пошуковий запит для Google Maps за допомогою Gemini API для пошуку ресторанів із цією стравою.
-     */
-    suspend fun generateMapsQuery(dishName: String, target: AppLanguage): String {
-        if (apiKey.isBlank() || dishName.isBlank()) return "ресторани $dishName"
-        return try {
-            val prompt = """
-                Generate a short 3-5 word Google Maps search query to find local restaurants or cafes serving "$dishName" in ${target.displayName}.
-                Return ONLY the raw search phrase with no quotes or extra text.
-            """.trimIndent()
-            val raw = callGeminiApi(prompt).trim().removeSurrounding("\"", "\"")
-            if (raw.isNotBlank()) raw else "ресторани $dishName"
-        } catch (_: Exception) {
-            "ресторани $dishName"
         }
     }
 

@@ -140,7 +140,7 @@ class FoodRepositoryImpl(
                         glovoUrl = "https://glovoapp.com/ua/uk/kyiv/search/?query=$encodedName",
                         boltUrl = null
                     ),
-                    price = 180.0
+                    price = null
                 ),
                 PlaceWithPrice(
                     place = Place(
@@ -150,9 +150,9 @@ class FoodRepositoryImpl(
                         latitude = 50.4501,
                         longitude = 30.5234,
                         glovoUrl = null,
-                        boltUrl = "https://food.bolt.eu/uk-UA"
+                        boltUrl = "https://food.bolt.eu/search?query=$encodedName"
                     ),
-                    price = 210.0
+                    price = null
                 ),
                 PlaceWithPrice(
                     place = Place(

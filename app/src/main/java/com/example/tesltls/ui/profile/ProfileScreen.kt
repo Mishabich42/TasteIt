@@ -106,56 +106,6 @@ fun ProfileScreen() {
             Spacer(Modifier.height(20.dp))
         }
 
-        // ── Блок Google Translate (Gemini API) ──
-        item {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(FoodColors.CardNeutral)
-                    .padding(18.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = strings.googleTranslate,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = FoodColors.TextPrimary
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(FoodColors.GreenSoft)
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "Gemini API",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = FoodColors.Green
-                                )
-                            }
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = strings.autoTranslateSub,
-                            fontSize = 13.sp,
-                            color = FoodColors.TextSecondary,
-                            lineHeight = 18.sp
-                        )
-                    }
-                }
-            }
-            Spacer(Modifier.height(20.dp))
-        }
-
         // ── Блок Темної теми ──
         item {
             val isDarkTheme by localStore.darkThemeEnabled.collectAsStateWithLifecycle()

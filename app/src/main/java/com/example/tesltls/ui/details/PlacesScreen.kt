@@ -30,7 +30,6 @@ import com.example.tesltls.R
 import com.example.tesltls.domain.model.PlaceWithPrice
 import com.example.tesltls.ui.common.openMapForDish
 import com.example.tesltls.ui.common.formatPrice
-import com.example.tesltls.ui.common.openMap
 import com.example.tesltls.ui.common.openUrl
 import com.example.tesltls.ui.components.LinkPill
 import com.example.tesltls.ui.components.LoadingBox
@@ -62,13 +61,15 @@ fun PlacesScreen(viewModel: DishDetailsViewModel, onBack: () -> Unit) {
             state.places.isEmpty() -> MessageBox(
                 message = strings.noPlacesNearby
             )
-            else -> LazyColumn(
-                contentPadding = PaddingValues(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Заклади вже відсортовані за ціною (від найдешевшого)
-                items(state.places, key = { it.place.id }) { item ->
-                    PlaceCard(item = item, dishName = state.dish?.name.orEmpty())
+            else -> {
+                val nearbyPlaces = state.places.filter { it.place.id.startsWith("place_near") }
+                LazyColumn(
+                    contentPadding = PaddingValues(bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(nearbyPlaces, key = { it.place.id }) { item ->
+                        PlaceCard(item = item, dishName = state.dish?.name.orEmpty())
+                    }
                 }
             }
         }
@@ -127,17 +128,7 @@ private fun PlaceCard(item: PlaceWithPrice, dishName: String) {
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LinkPill(label = strings.route, icon = R.drawable.ic_pin) {
-                if (place.id.startsWith("place_near")) {
-                    context.openMapForDish(dishName = dishName)
-                } else {
-                    context.openMap(place)
-                }
-            }
-            place.deliveryUrl(DeliveryService.GLOVO)?.let { url ->
-                LinkPill(label = "Glovo") { context.openUrl(url) }
-            }
-            place.deliveryUrl(DeliveryService.BOLT)?.let { url ->
-                LinkPill(label = "Bolt") { context.openUrl(url) }
+                context.openMapForDish(dishName = dishName)
             }
         }
     }
