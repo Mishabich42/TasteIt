@@ -42,6 +42,9 @@ class FoodLocalStore(
     private val _autoTranslateEnabled = MutableStateFlow(loadInitialAutoTranslate())
     val autoTranslateEnabled: StateFlow<Boolean> = _autoTranslateEnabled.asStateFlow()
 
+    private val _darkThemeEnabled = MutableStateFlow(loadInitialDarkTheme())
+    val darkThemeEnabled: StateFlow<Boolean> = _darkThemeEnabled.asStateFlow()
+
     private fun loadInitialLanguage(): AppLanguage {
         val code = prefs?.getString(KEY_LANGUAGE, null)
         return AppLanguage.fromCode(code)
@@ -49,6 +52,10 @@ class FoodLocalStore(
 
     private fun loadInitialAutoTranslate(): Boolean {
         return prefs?.getBoolean(KEY_AUTO_TRANSLATE, true) ?: true
+    }
+
+    private fun loadInitialDarkTheme(): Boolean {
+        return prefs?.getBoolean(KEY_DARK_THEME, false) ?: false
     }
 
     fun setLanguage(language: AppLanguage) {
@@ -59,6 +66,11 @@ class FoodLocalStore(
     fun setAutoTranslate(enabled: Boolean) {
         prefs?.edit()?.putBoolean(KEY_AUTO_TRANSLATE, enabled)?.apply()
         _autoTranslateEnabled.value = enabled
+    }
+
+    fun setDarkTheme(enabled: Boolean) {
+        prefs?.edit()?.putBoolean(KEY_DARK_THEME, enabled)?.apply()
+        _darkThemeEnabled.value = enabled
     }
 
     /**
@@ -173,5 +185,6 @@ class FoodLocalStore(
         private const val KEY_LIKED_DISHES = "pref_liked_dishes_json"
         private const val KEY_LANGUAGE = "pref_selected_language"
         private const val KEY_AUTO_TRANSLATE = "pref_auto_translate_enabled"
+        private const val KEY_DARK_THEME = "pref_dark_theme_enabled"
     }
 }

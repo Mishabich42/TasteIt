@@ -347,6 +347,7 @@ fun LinkPill(
     enabled: Boolean = true,
     onClick: () -> Unit
 ) {
+    val textColor = if (com.example.tesltls.ui.theme.LocalIsDarkTheme.current) Color.Black else FoodColors.TextPrimary
     Row(
         modifier = modifier
             .alpha(if (enabled) 1f else 0.45f)
@@ -361,7 +362,7 @@ fun LinkPill(
             text = label,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
-            color = FoodColors.TextPrimary
+            color = textColor
         )
         Spacer(Modifier.width(10.dp))
         AppIcon(icon, tint = FoodColors.Green, size = 16.dp)

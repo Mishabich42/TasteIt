@@ -244,6 +244,7 @@ private fun CategoriesTitle(count: Int) {
 @Composable
 private fun CategoryTile(category: FoodCategory, onClick: () -> Unit) {
     val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
+    val textColor = if (com.example.tesltls.ui.theme.LocalIsDarkTheme.current) Color.Black else FoodColors.TextPrimary
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -265,7 +266,7 @@ private fun CategoryTile(category: FoodCategory, onClick: () -> Unit) {
             text = strings.categoryTitle(category),
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
-            color = FoodColors.TextPrimary,
+            color = textColor,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center

@@ -19,6 +19,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -149,6 +151,52 @@ fun ProfileScreen() {
                             lineHeight = 18.sp
                         )
                     }
+                }
+            }
+            Spacer(Modifier.height(20.dp))
+        }
+
+        // ── Блок Темної теми ──
+        item {
+            val isDarkTheme by localStore.darkThemeEnabled.collectAsStateWithLifecycle()
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(FoodColors.CardNeutral)
+                    .padding(18.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = "Темна тема",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = FoodColors.TextPrimary
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Увімкнути темне оформлення інтерфейсу",
+                            fontSize = 13.sp,
+                            color = FoodColors.TextSecondary,
+                            lineHeight = 18.sp
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Switch(
+                        checked = isDarkTheme,
+                        onCheckedChange = { localStore.setDarkTheme(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = FoodColors.Green,
+                            uncheckedThumbColor = Color.White,
+                            uncheckedTrackColor = FoodColors.Divider
+                        )
+                    )
                 }
             }
             Spacer(Modifier.height(20.dp))

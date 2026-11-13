@@ -343,6 +343,7 @@ private fun ActionCard(
 @Composable
 private fun YouTubePill(onClick: () -> Unit) {
     val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
+    val textColor = if (com.example.tesltls.ui.theme.LocalIsDarkTheme.current) Color.Black else FoodColors.TextPrimary
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -367,7 +368,7 @@ private fun YouTubePill(onClick: () -> Unit) {
             modifier = Modifier.weight(1f),
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
-            color = FoodColors.TextPrimary
+            color = textColor
         )
         Text(text = "YouTube", fontSize = 11.sp, color = FoodColors.TextSecondary)
     }
