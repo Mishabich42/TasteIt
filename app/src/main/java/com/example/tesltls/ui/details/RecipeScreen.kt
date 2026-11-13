@@ -33,10 +33,12 @@ import com.example.tesltls.ui.components.DishImage
 import com.example.tesltls.ui.components.LoadingBox
 import com.example.tesltls.ui.components.MessageBox
 import com.example.tesltls.ui.components.ScreenHeader
+import com.example.tesltls.ui.strings.LocalAppStrings
 import com.example.tesltls.ui.theme.FoodColors
 
 @Composable
 fun RecipeScreen(viewModel: DishDetailsViewModel, onBack: () -> Unit) {
+    val strings = LocalAppStrings.current
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val dish = state.dish
@@ -47,8 +49,8 @@ fun RecipeScreen(viewModel: DishDetailsViewModel, onBack: () -> Unit) {
     }
     if (dish == null) {
         MessageBox(
-            message = state.error ?: "Страву не знайдено",
-            actionLabel = "Спробувати ще раз",
+            message = state.error ?: strings.dishNotFound,
+            actionLabel = strings.tryAgain,
             onAction = viewModel::load
         )
         return
@@ -60,7 +62,7 @@ fun RecipeScreen(viewModel: DishDetailsViewModel, onBack: () -> Unit) {
             .padding(horizontal = 20.dp)
             .padding(bottom = 24.dp)
     ) {
-        ScreenHeader(title = "Рецепт", subtitle = dish.name, onBack = onBack)
+        ScreenHeader(title = strings.recipeTitle, subtitle = dish.name, onBack = onBack)
         Spacer(Modifier.height(16.dp))
 
         DishImage(
@@ -81,15 +83,14 @@ fun RecipeScreen(viewModel: DishDetailsViewModel, onBack: () -> Unit) {
                 .padding(18.dp)
         ) {
             Text(
-                text = "Покрокова інструкція",
+                text = strings.stepByStep,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = FoodColors.TextPrimary
             )
             Spacer(Modifier.height(10.dp))
             Text(
-                text = dish.recipeText?.takeIf { it.isNotBlank() }
-                    ?: "Текстовий рецепт для цієї страви ще не додано.",
+                text = dish.recipeText?.takeIf { it.isNotBlank() } ?: strings.noRecipeText,
                 fontSize = 15.sp,
                 lineHeight = 22.sp,
                 color = FoodColors.TextPrimary
@@ -118,7 +119,7 @@ fun RecipeScreen(viewModel: DishDetailsViewModel, onBack: () -> Unit) {
                 }
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    text = "Дивитися відеорецепт на YouTube",
+                    text = strings.watchOnYoutube,
                     modifier = Modifier.weight(1f),
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,

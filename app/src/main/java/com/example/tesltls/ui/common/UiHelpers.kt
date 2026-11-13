@@ -15,25 +15,36 @@ import io.github.jan.supabase.exceptions.HttpRequestException
 import java.io.IOException
 import java.util.Locale
 
+import com.example.tesltls.ui.strings.AppStrings
+
 /** Перетворює технічну помилку на зрозуміле користувачу повідомлення. */
-fun Throwable.toUserMessage(): String = when (this) {
-    is FoodRepositoryException.Network, is HttpRequestException, is IOException ->
-        "Немає з'єднання з інтернетом. Перевірте мережу та спробуйте ще раз."
+fun Throwable.toUserMessage(strings: AppStrings? = null): String = when (this) {
+    is FoodRepositoryException.Network ->
+        message?.takeIf { it.isNotBlank() }
+            ?: strings?.networkError
+            ?: "Немає з'єднання з інтернетом. Перевірте мережу та спробуйте ще раз."
     is FoodRepositoryException.Database ->
-        "Сервер повернув помилку. Спробуйте трохи пізніше."
+        message?.takeIf { it.isNotBlank() }
+            ?: strings?.serverError
+            ?: "Сервер повернув помилку. Спробуйте трохи пізніше."
     is FoodRepositoryException.Serialization ->
-        "Отримано некоректні дані від сервера."
-    else -> "Щось пішло не так. Спробуйте ще раз."
+        strings?.dataError ?: "Отримано некоректні дані від сервера."
+    is HttpRequestException, is IOException ->
+        strings?.networkError
+            ?: "Немає з'єднання з інтернетом. Перевірте мережу та спробуйте ще раз."
+    else -> message?.takeIf { it.isNotBlank() }
+        ?: strings?.unknownError
+        ?: "Щось пішло не так. Спробуйте ще раз."
 }
 
 /** Відкриває посилання (браузер, YouTube, Glovo, Bolt) або показує повідомлення, якщо нема чим. */
-fun Context.openUrl(url: String) {
+fun Context.openUrl(url: String, errorMessage: String? = null) {
     try {
         startActivity(
             Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
     } catch (e: Exception) {
-        Toast.makeText(this, "Не вдалося відкрити посилання", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, errorMessage ?: "Не вдалося відкрити посилання", Toast.LENGTH_SHORT).show()
     }
 }
 
@@ -41,6 +52,22 @@ fun Context.openUrl(url: String) {
 fun Context.openMap(place: Place) {
     val label = Uri.encode(place.name)
     openUrl("geo:${place.latitude},${place.longitude}?q=${place.latitude},${place.longitude}($label)")
+}
+
+/** Відкриває Google Maps для пошуку найближчих реальних закладах з цією стравою за місцезнаходженням користувача. */
+fun Context.openMapForDish(dishName: String, customQuery: String? = null) {
+    val searchQuery = customQuery?.takeIf { it.isNotBlank() } ?: "ресторани $dishName"
+    val encoded = Uri.encode(searchQuery)
+    val mapUri = Uri.parse("https://www.google.com/maps/search/?api=1&query=$encoded")
+    val intent = Intent(Intent.ACTION_VIEW, mapUri).apply {
+        setPackage("com.google.android.apps.maps")
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    try {
+        startActivity(intent)
+    } catch (_: Exception) {
+        openUrl("https://www.google.com/maps/search/?api=1&query=$encoded")
+    }
 }
 
 /** 180.0 -> "180 ₴", 99.5 -> "99.50 ₴", null -> null. */

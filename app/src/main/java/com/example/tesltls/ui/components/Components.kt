@@ -1,10 +1,14 @@
 package com.example.tesltls.ui.components
 
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -65,14 +69,15 @@ fun AppIcon(
 
 // ───────────────────────── Нижня навігація ─────────────────────────
 
-enum class BottomTab(val label: String, @DrawableRes val icon: Int) {
-    SEARCH("Пошук", R.drawable.ic_grid),
-    FAVORITES("Улюблене", R.drawable.ic_heart),
-    PROFILE("Профіль", R.drawable.ic_person)
+enum class BottomTab(@DrawableRes val icon: Int) {
+    SEARCH(R.drawable.ic_grid),
+    FAVORITES(R.drawable.ic_heart),
+    PROFILE(R.drawable.ic_person)
 }
 
 @Composable
 fun FoodBottomBar(selected: BottomTab, onSelect: (BottomTab) -> Unit) {
+    val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
     Column(Modifier.background(FoodColors.BottomBar)) {
         HorizontalDivider(color = FoodColors.Divider)
         Row(
@@ -84,6 +89,11 @@ fun FoodBottomBar(selected: BottomTab, onSelect: (BottomTab) -> Unit) {
             BottomTab.entries.forEach { tab ->
                 val isSelected = tab == selected
                 val color = if (isSelected) FoodColors.Green else FoodColors.TextMuted
+                val label = when (tab) {
+                    BottomTab.SEARCH -> strings.navSearch
+                    BottomTab.FAVORITES -> strings.navFavorites
+                    BottomTab.PROFILE -> strings.navProfile
+                }
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -94,9 +104,9 @@ fun FoodBottomBar(selected: BottomTab, onSelect: (BottomTab) -> Unit) {
                         .padding(vertical = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    AppIcon(tab.icon, tint = color, size = 26.dp, contentDescription = tab.label)
+                    AppIcon(tab.icon, tint = color, size = 26.dp, contentDescription = label)
                     Text(
-                        text = tab.label,
+                        text = label,
                         color = color,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold
@@ -112,6 +122,7 @@ fun FoodBottomBar(selected: BottomTab, onSelect: (BottomTab) -> Unit) {
 /** Квадратна кнопка "назад" (світло-зелена, як у макеті). */
 @Composable
 fun BackButton(onClick: () -> Unit) {
+    val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
     Box(
         modifier = Modifier
             .size(40.dp)
@@ -120,7 +131,7 @@ fun BackButton(onClick: () -> Unit) {
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        AppIcon(R.drawable.ic_chevron_left, size = 22.dp, contentDescription = "Назад")
+        AppIcon(R.drawable.ic_chevron_left, size = 22.dp, contentDescription = strings.back)
     }
 }
 
@@ -244,19 +255,58 @@ fun DishImage(
     }
 }
 
-/** Рядок зі стравою (результати пошуку, "Улюблене"). */
+/** Рядок зі стравою (результати пошуку, "Улюблене") з підтримкою тривалого натискання та вибору. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun DishRow(dish: Dish, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun DishRow(
+    dish: Dish,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
+    isSelected: Boolean = false,
+    isSelectionMode: Boolean = false
+) {
+    val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
     val cat = FoodCategory.fromDb(dish.category)
+    val catTitle = cat?.let { strings.categoryTitle(it) } ?: dish.category
+
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background((cat?.color ?: FoodColors.Pill).copy(alpha = 0.6f))
-            .clickable(onClick = onClick)
+            .background(
+                if (isSelected) FoodColors.GreenSoft
+                else (cat?.color ?: FoodColors.Pill).copy(alpha = 0.6f)
+            )
+            .then(
+                if (isSelected) {
+                    Modifier.border(2.dp, FoodColors.Green, RoundedCornerShape(20.dp))
+                } else {
+                    Modifier
+                }
+            )
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (isSelectionMode) {
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(if (isSelected) FoodColors.Green else FoodColors.SearchField),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isSelected) {
+                    AppIcon(R.drawable.ic_check, tint = Color.White, size = 14.dp)
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+        }
+
         DishImage(
             url = dish.imageUrl,
             category = dish.category,
@@ -265,7 +315,7 @@ fun DishRow(dish: Dish, onClick: () -> Unit, modifier: Modifier = Modifier) {
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                text = (cat?.title ?: dish.category).uppercase(),
+                text = catTitle.uppercase(),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.sp,
@@ -280,7 +330,9 @@ fun DishRow(dish: Dish, onClick: () -> Unit, modifier: Modifier = Modifier) {
                 overflow = TextOverflow.Ellipsis
             )
         }
-        AppIcon(R.drawable.ic_chevron_right, tint = FoodColors.TextSecondary, size = 20.dp)
+        if (!isSelectionMode) {
+            AppIcon(R.drawable.ic_chevron_right, tint = FoodColors.TextSecondary, size = 20.dp)
+        }
     }
 }
 
@@ -295,6 +347,7 @@ fun LinkPill(
     enabled: Boolean = true,
     onClick: () -> Unit
 ) {
+    val textColor = if (com.example.tesltls.ui.theme.LocalIsDarkTheme.current) Color.Black else FoodColors.TextPrimary
     Row(
         modifier = modifier
             .alpha(if (enabled) 1f else 0.45f)
@@ -309,7 +362,7 @@ fun LinkPill(
             text = label,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
-            color = FoodColors.TextPrimary
+            color = textColor
         )
         Spacer(Modifier.width(10.dp))
         AppIcon(icon, tint = FoodColors.Green, size = 16.dp)

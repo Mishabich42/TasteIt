@@ -5,8 +5,11 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -28,6 +31,8 @@ import com.example.tesltls.ui.favorites.FavoritesViewModel
 import com.example.tesltls.ui.home.HomeScreen
 import com.example.tesltls.ui.home.HomeViewModel
 import com.example.tesltls.ui.profile.ProfileScreen
+import com.example.tesltls.ui.strings.LocalAppStrings
+import com.example.tesltls.ui.strings.getAppStrings
 import com.example.tesltls.ui.swipe.SwipeScreen
 import com.example.tesltls.ui.swipe.SwipeViewModel
 import com.example.tesltls.ui.theme.FoodColors
@@ -48,31 +53,35 @@ sealed interface Route {
 
 @Composable
 fun FoodApp() {
-    val navController = rememberNavController()
-    val backStackEntry by navController.currentBackStackEntryAsState()
-    val destination = backStackEntry?.destination
+    val currentLanguage by ServiceLocator.localStore.selectedLanguage.collectAsStateWithLifecycle()
+    val strings = remember(currentLanguage) { getAppStrings(currentLanguage) }
 
-    // Яка вкладка підсвічена: екрани пошукового сценарію (категорія, свайп, дії...) належать "Пошуку"
-    val selectedTab = when {
-        destination?.hasRoute<Route.Favorites>() == true -> BottomTab.FAVORITES
-        destination?.hasRoute<Route.Profile>() == true -> BottomTab.PROFILE
-        else -> BottomTab.SEARCH
-    }
+    CompositionLocalProvider(LocalAppStrings provides strings) {
+        val navController = rememberNavController()
+        val backStackEntry by navController.currentBackStackEntryAsState()
+        val destination = backStackEntry?.destination
 
-    Scaffold(
-        containerColor = FoodColors.Background,
-        bottomBar = {
-            FoodBottomBar(selected = selectedTab) { tab -> navController.openTab(tab) }
+        // Яка вкладка підсвічена: екрани пошукового сценарію (категорія, свайп, дії...) належать "Пошуку"
+        val selectedTab = when {
+            destination?.hasRoute<Route.Favorites>() == true -> BottomTab.FAVORITES
+            destination?.hasRoute<Route.Profile>() == true -> BottomTab.PROFILE
+            else -> BottomTab.SEARCH
         }
-    ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = Route.Home,
-            modifier = Modifier
-                .padding(innerPadding)
-                .consumeWindowInsets(innerPadding)
-                .imePadding()
-        ) {
+
+        Scaffold(
+            containerColor = FoodColors.Background,
+            bottomBar = {
+                FoodBottomBar(selected = selectedTab) { tab -> navController.openTab(tab) }
+            }
+        ) { innerPadding ->
+            NavHost(
+                navController = navController,
+                startDestination = Route.Home,
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .consumeWindowInsets(innerPadding)
+                    .imePadding()
+            ) {
             composable<Route.Home> {
                 val vm = entryViewModel { HomeViewModel(ServiceLocator.foodRepository) }
                 HomeScreen(
@@ -143,6 +152,7 @@ fun FoodApp() {
             composable<Route.Profile> { ProfileScreen() }
         }
     }
+}
 }
 
 /** Перехід між вкладками нижньої панелі. */

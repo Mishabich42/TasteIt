@@ -28,23 +28,25 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.tesltls.R
 import com.example.tesltls.domain.model.PlaceWithPrice
+import com.example.tesltls.ui.common.openMapForDish
 import com.example.tesltls.ui.common.formatPrice
-import com.example.tesltls.ui.common.openMap
 import com.example.tesltls.ui.common.openUrl
 import com.example.tesltls.ui.components.LinkPill
 import com.example.tesltls.ui.components.LoadingBox
 import com.example.tesltls.ui.components.MessageBox
 import com.example.tesltls.ui.components.ScreenHeader
+import com.example.tesltls.ui.strings.LocalAppStrings
 import com.example.tesltls.ui.theme.FoodColors
 
 @Composable
 fun PlacesScreen(viewModel: DishDetailsViewModel, onBack: () -> Unit) {
+    val strings = LocalAppStrings.current
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         ScreenHeader(
-            title = "Заклади поруч",
-            subtitle = state.dish?.name ?: "Де скуштувати цю страву",
+            title = strings.placesTitle,
+            subtitle = state.dish?.name ?: strings.placesHeaderSub,
             onBack = onBack
         )
         Spacer(Modifier.height(16.dp))
@@ -53,25 +55,30 @@ fun PlacesScreen(viewModel: DishDetailsViewModel, onBack: () -> Unit) {
             state.isLoading -> LoadingBox()
             state.error != null && state.dish == null -> MessageBox(
                 message = state.error.orEmpty(),
-                actionLabel = "Спробувати ще раз",
+                actionLabel = strings.tryAgain,
                 onAction = viewModel::load
             )
             state.places.isEmpty() -> MessageBox(
-                message = "Поки що немає закладів, де подають цю страву."
+                message = strings.noPlacesNearby
             )
-            else -> LazyColumn(
-                contentPadding = PaddingValues(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Заклади вже відсортовані за ціною (від найдешевшого)
-                items(state.places, key = { it.place.id }) { item -> PlaceCard(item) }
+            else -> {
+                val nearbyPlaces = state.places.filter { it.place.id.startsWith("place_near") }
+                LazyColumn(
+                    contentPadding = PaddingValues(bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(nearbyPlaces, key = { it.place.id }) { item ->
+                        PlaceCard(item = item, dishName = state.dish?.name.orEmpty())
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun PlaceCard(item: PlaceWithPrice) {
+private fun PlaceCard(item: PlaceWithPrice, dishName: String) {
+    val strings = LocalAppStrings.current
     val context = LocalContext.current
     val place = item.place
 
@@ -120,12 +127,8 @@ private fun PlaceCard(item: PlaceWithPrice) {
         Spacer(Modifier.height(12.dp))
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            LinkPill(label = "Маршрут", icon = R.drawable.ic_pin) { context.openMap(place) }
-            place.deliveryUrl(DeliveryService.GLOVO)?.let { url ->
-                LinkPill(label = "Glovo") { context.openUrl(url) }
-            }
-            place.deliveryUrl(DeliveryService.BOLT)?.let { url ->
-                LinkPill(label = "Bolt") { context.openUrl(url) }
+            LinkPill(label = strings.route, icon = R.drawable.ic_pin) {
+                context.openMapForDish(dishName = dishName)
             }
         }
     }

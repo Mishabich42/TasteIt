@@ -60,6 +60,7 @@ fun ActionMenuScreen(
     onOpenPlaces: () -> Unit,
     onExitToMenu: () -> Unit
 ) {
+    val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var sheetService by remember { mutableStateOf<DeliveryService?>(null) }
@@ -71,8 +72,8 @@ fun ActionMenuScreen(
     }
     if (dish == null) {
         MessageBox(
-            message = state.error ?: "Страву не знайдено",
-            actionLabel = "Спробувати ще раз",
+            message = state.error ?: "—",
+            actionLabel = strings.tryAgain,
             onAction = viewModel::load
         )
         return
@@ -83,14 +84,13 @@ fun ActionMenuScreen(
         val options = state.places.filter { it.place.deliveryUrl(service) != null }
         when (options.size) {
             0 -> Toast.makeText(
-                context, "Для цієї страви немає доставки через ${service.title}", Toast.LENGTH_SHORT
+                context, "${strings.noDeliveryForService} ${service.title}", Toast.LENGTH_SHORT
             ).show()
             1 -> context.openUrl(options.first().place.deliveryUrl(service)!!)
             else -> sheetService = service
         }
     }
 
-    val hasGlovo = state.places.any { it.place.deliveryUrl(DeliveryService.GLOVO) != null }
     val hasBolt = state.places.any { it.place.deliveryUrl(DeliveryService.BOLT) != null }
 
     Column(
@@ -100,8 +100,8 @@ fun ActionMenuScreen(
             .padding(bottom = 24.dp)
     ) {
         ScreenHeader(
-            title = "Смачний вибір!",
-            subtitle = "Тепер оберіть, як насолодитися стравою.",
+            title = strings.tastyChoice,
+            subtitle = strings.tastyChoiceSub,
             onBack = onBack
         )
         Spacer(Modifier.height(16.dp))
@@ -110,7 +110,7 @@ fun ActionMenuScreen(
 
         Spacer(Modifier.height(20.dp))
         Text(
-            text = "Що далі?",
+            text = strings.whatNext,
             fontSize = 18.sp,
             fontWeight = FontWeight.ExtraBold,
             color = FoodColors.TextPrimary
@@ -121,8 +121,8 @@ fun ActionMenuScreen(
         ActionCard(
             color = FoodColors.CardGreen,
             icon = R.drawable.ic_book,
-            title = "Рецепт",
-            subtitle = "Покрокова інструкція, щоб приготувати страву вдома.",
+            title = strings.recipeTitle,
+            subtitle = strings.recipeSub,
             onClick = onOpenRecipe
         ) {
             if (!dish.youtubeUrl.isNullOrBlank()) {
@@ -136,8 +136,8 @@ fun ActionMenuScreen(
         ActionCard(
             color = FoodColors.CardPlaces,
             icon = R.drawable.ic_pin,
-            title = "Заклади поруч",
-            subtitle = "Знайдіть, де скуштувати цю страву неподалік від вас.",
+            title = strings.placesTitle,
+            subtitle = strings.placesSub,
             onClick = onOpenPlaces
         )
         Spacer(Modifier.height(12.dp))
@@ -146,27 +146,19 @@ fun ActionMenuScreen(
         ActionCard(
             color = FoodColors.CardDelivery,
             icon = R.drawable.ic_bag,
-            title = "Доставка додому",
-            subtitle = "Перевірте страву у сервісах доставки."
+            title = strings.deliveryTitle,
+            subtitle = strings.deliverySub
         ) {
             Spacer(Modifier.height(14.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                LinkPill(
-                    label = DeliveryService.GLOVO.title,
-                    modifier = Modifier.weight(1f),
-                    enabled = hasGlovo,
-                    onClick = { onDeliveryClick(DeliveryService.GLOVO) }
-                )
-                LinkPill(
-                    label = DeliveryService.BOLT.title,
-                    modifier = Modifier.weight(1f),
-                    enabled = hasBolt,
-                    onClick = { onDeliveryClick(DeliveryService.BOLT) }
-                )
-            }
+            LinkPill(
+                label = DeliveryService.BOLT.title,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = hasBolt,
+                onClick = { onDeliveryClick(DeliveryService.BOLT) }
+            )
             Spacer(Modifier.height(10.dp))
             Text(
-                text = "Доступність залежить від закладу.",
+                text = strings.deliveryAvailabilityNote,
                 fontSize = 11.sp,
                 color = FoodColors.TextSecondary
             )
@@ -177,8 +169,8 @@ fun ActionMenuScreen(
         ActionCard(
             color = FoodColors.CardNeutral,
             icon = R.drawable.ic_exit,
-            title = "Вийти до меню",
-            subtitle = "Обрати іншу категорію",
+            title = strings.toMenu,
+            subtitle = strings.categories,
             onClick = onExitToMenu
         )
     }
@@ -192,7 +184,7 @@ fun ActionMenuScreen(
         ) {
             Column(Modifier.padding(horizontal = 20.dp).navigationBarsPadding()) {
                 Text(
-                    text = "${service.title}: оберіть заклад",
+                    text = strings.selectPlaceHeader(service.title),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = FoodColors.TextPrimary
@@ -237,7 +229,9 @@ fun ActionMenuScreen(
 
 @Composable
 private fun DishInfoCard(dish: Dish) {
+    val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
     val category = FoodCategory.fromDb(dish.category)
+    val catTitle = category?.let { strings.categoryTitle(it) } ?: dish.category
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -254,7 +248,7 @@ private fun DishInfoCard(dish: Dish) {
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                text = (category?.title ?: dish.category).uppercase(),
+                text = catTitle.uppercase(),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.sp,
@@ -339,6 +333,8 @@ private fun ActionCard(
 /** Біла смужка "Дивитися відеорецепт ... YouTube" з червоним значком. */
 @Composable
 private fun YouTubePill(onClick: () -> Unit) {
+    val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
+    val textColor = if (com.example.tesltls.ui.theme.LocalIsDarkTheme.current) Color.Black else FoodColors.TextPrimary
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -359,11 +355,11 @@ private fun YouTubePill(onClick: () -> Unit) {
         }
         Spacer(Modifier.width(10.dp))
         Text(
-            text = "Дивитися відеорецепт",
+            text = strings.watchOnYoutube,
             modifier = Modifier.weight(1f),
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
-            color = FoodColors.TextPrimary
+            color = textColor
         )
         Text(text = "YouTube", fontSize = 11.sp, color = FoodColors.TextSecondary)
     }

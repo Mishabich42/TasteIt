@@ -24,14 +24,12 @@ data class DishDetailsState(
 
 /** Сервіси доставки, посилання на які зберігаються в таблиці places. */
 enum class DeliveryService(val title: String) {
-    GLOVO("Glovo"),
     BOLT("Bolt Food")
 }
 
 /** Посилання на страву у вибраному сервісі доставки (null/порожнє = немає). */
 fun Place.deliveryUrl(service: DeliveryService): String? =
     when (service) {
-        DeliveryService.GLOVO -> glovoUrl
         DeliveryService.BOLT -> boltUrl
     }?.takeIf { it.isNotBlank() }
 
