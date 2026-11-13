@@ -155,6 +155,23 @@ class GoogleTranslationService {
     }
 
     /**
+     * Генерує оптимізований пошуковий запит для Google Maps за допомогою Gemini API для пошуку ресторанів із цією стравою.
+     */
+    suspend fun generateMapsQuery(dishName: String, target: AppLanguage): String {
+        if (apiKey.isBlank() || dishName.isBlank()) return "ресторани $dishName"
+        return try {
+            val prompt = """
+                Generate a short 3-5 word Google Maps search query to find local restaurants or cafes serving "$dishName" in ${target.displayName}.
+                Return ONLY the raw search phrase with no quotes or extra text.
+            """.trimIndent()
+            val raw = callGeminiApi(prompt).trim().removeSurrounding("\"", "\"")
+            if (raw.isNotBlank()) raw else "ресторани $dishName"
+        } catch (_: Exception) {
+            "ресторани $dishName"
+        }
+    }
+
+    /**
      * Перекладає текст з англійської на цільову мову [target] через ML Kit.
      */
     suspend fun translate(text: String, target: AppLanguage): String {

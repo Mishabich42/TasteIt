@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.tesltls.R
 import com.example.tesltls.domain.model.PlaceWithPrice
+import com.example.tesltls.ui.common.openMapForDish
 import com.example.tesltls.ui.common.formatPrice
 import com.example.tesltls.ui.common.openMap
 import com.example.tesltls.ui.common.openUrl
@@ -66,14 +67,16 @@ fun PlacesScreen(viewModel: DishDetailsViewModel, onBack: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Заклади вже відсортовані за ціною (від найдешевшого)
-                items(state.places, key = { it.place.id }) { item -> PlaceCard(item) }
+                items(state.places, key = { it.place.id }) { item ->
+                    PlaceCard(item = item, dishName = state.dish?.name.orEmpty())
+                }
             }
         }
     }
 }
 
 @Composable
-private fun PlaceCard(item: PlaceWithPrice) {
+private fun PlaceCard(item: PlaceWithPrice, dishName: String) {
     val strings = LocalAppStrings.current
     val context = LocalContext.current
     val place = item.place
@@ -123,7 +126,13 @@ private fun PlaceCard(item: PlaceWithPrice) {
         Spacer(Modifier.height(12.dp))
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            LinkPill(label = strings.route, icon = R.drawable.ic_pin) { context.openMap(place) }
+            LinkPill(label = strings.route, icon = R.drawable.ic_pin) {
+                if (place.id.startsWith("place_near")) {
+                    context.openMapForDish(dishName = dishName)
+                } else {
+                    context.openMap(place)
+                }
+            }
             place.deliveryUrl(DeliveryService.GLOVO)?.let { url ->
                 LinkPill(label = "Glovo") { context.openUrl(url) }
             }

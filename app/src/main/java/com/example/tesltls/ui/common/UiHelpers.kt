@@ -54,6 +54,22 @@ fun Context.openMap(place: Place) {
     openUrl("geo:${place.latitude},${place.longitude}?q=${place.latitude},${place.longitude}($label)")
 }
 
+/** Відкриває Google Maps для пошуку найближчих реальних закладах з цією стравою за місцезнаходженням користувача. */
+fun Context.openMapForDish(dishName: String, customQuery: String? = null) {
+    val searchQuery = customQuery?.takeIf { it.isNotBlank() } ?: "ресторани $dishName"
+    val encoded = Uri.encode(searchQuery)
+    val mapUri = Uri.parse("https://www.google.com/maps/search/?api=1&query=$encoded")
+    val intent = Intent(Intent.ACTION_VIEW, mapUri).apply {
+        setPackage("com.google.android.apps.maps")
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    try {
+        startActivity(intent)
+    } catch (_: Exception) {
+        openUrl("https://www.google.com/maps/search/?api=1&query=$encoded")
+    }
+}
+
 /** 180.0 -> "180 ₴", 99.5 -> "99.50 ₴", null -> null. */
 fun formatPrice(price: Double?): String? = price?.let {
     if (it % 1.0 == 0.0) "${it.toInt()} ₴" else String.format(Locale.US, "%.2f ₴", it)
