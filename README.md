@@ -89,13 +89,12 @@ Android-застосунок для вибору та приготування �
 <div align="center">
 
 
-|:---:|:---:|:---:|:---:|
+
 | <img src="docs/screenshots/swipe.png" width="200"/> | <img src="docs/screenshots/search.png" width="200"/> | <img src="docs/screenshots/recipe.png" width="200"/> | <img src="docs/screenshots/favorites.png" width="200"/> |
 
 </div>
 
 
-> 🚧 Скріншоти незабаром.
 
 ---
 
