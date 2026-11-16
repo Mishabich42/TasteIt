@@ -157,6 +157,7 @@ fun SwipeScreen(
     onBack: () -> Unit,
     onOpenDish: (String) -> Unit
 ) {
+    val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val currentOnOpenDish by rememberUpdatedState(onOpenDish)
@@ -180,13 +181,13 @@ fun SwipeScreen(
             Spacer(Modifier.width(12.dp))
             Column {
                 Text(
-                    text = category?.title ?: "Страви",
+                    text = category?.let { strings.categoryTitle(it) } ?: "—",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = FoodColors.TextPrimary
                 )
                 Text(
-                    text = "Вліво — пропустити, вправо — обрати",
+                    text = strings.swipeHint,
                     fontSize = 12.sp,
                     color = FoodColors.TextSecondary
                 )
@@ -197,13 +198,13 @@ fun SwipeScreen(
             when (val s = state) {
                 SwipeUiState.Loading -> LoadingBox()
                 SwipeUiState.Empty -> MessageBox(
-                    message = "На сьогодні всі страви цієї категорії переглянуто. Завітайте завтра або оберіть іншу категорію.",
-                    actionLabel = "До меню",
+                    message = strings.swipeEmptyMessage,
+                    actionLabel = strings.toMenu,
                     onAction = onBack
                 )
                 is SwipeUiState.Error -> MessageBox(
                     message = s.message,
-                    actionLabel = "Спробувати ще раз",
+                    actionLabel = strings.tryAgain,
                     onAction = viewModel::reload
                 )
                 is SwipeUiState.Content -> SwipeDeck(
@@ -277,19 +278,20 @@ private fun SwipeDeck(
 
         Spacer(Modifier.height(20.dp))
 
+        val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
         Row(horizontalArrangement = Arrangement.spacedBy(40.dp)) {
             RoundActionButton(
                 icon = R.drawable.ic_close,
                 container = FoodColors.DangerSoft,
                 content = FoodColors.Danger,
-                label = "Пропустити",
+                label = strings.skip,
                 onClick = { fling(false) }
             )
             RoundActionButton(
                 icon = R.drawable.ic_check,
                 container = FoodColors.Green,
                 content = Color.White,
-                label = "Обрати",
+                label = strings.choose,
                 onClick = { fling(true) }
             )
         }
@@ -299,6 +301,8 @@ private fun SwipeDeck(
 
 @Composable
 private fun DishCard(dish: Dish, category: FoodCategory?, progress: Float) {
+    val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
+    val catTitle = category?.let { strings.categoryTitle(it) } ?: dish.category
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -337,7 +341,7 @@ private fun DishCard(dish: Dish, category: FoodCategory?, progress: Float) {
         }
         Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 20.dp)) {
             Text(
-                text = (category?.title ?: dish.category).uppercase(),
+                text = catTitle.uppercase(),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.sp,
