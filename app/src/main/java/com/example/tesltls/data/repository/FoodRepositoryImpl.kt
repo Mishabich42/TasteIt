@@ -19,9 +19,11 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
@@ -42,88 +44,89 @@ class FoodRepositoryImpl(
 
     // ───────────────────────── getRandomDish ─────────────────────────
 
-    override suspend fun getRandomDish(category: String, userId: String): Dish? =
-        safeCall("getRandomDish") {
-            val foodCategory = FoodCategory.fromDb(category)
-            val swipedIds = localStore.getTodaySwipedDishIds()
+    override suspend fun getRandomDish(
+        category: String,
+        userId: String,
+        excludedDishIds: Set<String>
+    ): Dish? = safeCall("getRandomDish") {
+        val foodCategory = FoodCategory.fromDb(category)
 
-            // Якщо вибрано категорію "Випадково" (Random)
-            if (foodCategory == FoodCategory.RANDOM || category.equals("Random", ignoreCase = true)) {
-                repeat(6) {
-                    val randomMeal = apiClient.getRandomMeal()
-                    if (randomMeal != null) {
-                        val dish = randomMeal.toDomainDish(categoryFallback = "random")
-                        if (dish.id !in swipedIds) {
-                            rawDishesCache[dish.id] = dish
-                            return@safeCall dish.applyTranslation()
-                        }
-                    }
-                }
-                val meal = apiClient.getRandomMeal()
-                if (meal != null) {
-                    val dish = meal.toDomainDish(categoryFallback = "random")
-                    rawDishesCache[dish.id] = dish
-                    return@safeCall dish.applyTranslation()
-                }
-                return@safeCall null
-            }
-
-            val buffer = categoryBuffers.getOrPut(category) { mutableListOf() }
-
-            // Шукаємо першу страву в буфері, яку користувач ще не свайпав сьогодні
-            while (buffer.isNotEmpty()) {
-                val candidate = buffer.removeAt(0)
-                if (candidate.id !in swipedIds) {
-                    val fullDish = getOrFetchFullDish(candidate)
-                    rawDishesCache[fullDish.id] = fullDish
-                    return@safeCall fullDish.applyTranslation()
-                }
-            }
-
-            // Якщо буфер вичерпано — шукаємо точно відповідні страви в TheMealDB
-            val candidates = mutableListOf<MealDto>()
-
-            // 1. Пошук за категорією TheMealDB
-            foodCategory?.mealDbCategory?.let { mealCat ->
-                candidates.addAll(apiClient.getMealsByCategory(mealCat))
-            }
-
-            // 2. Пошук за регіоном/кухнею TheMealDB
-            foodCategory?.mealDbArea?.let { area ->
-                candidates.addAll(apiClient.getMealsByArea(area))
-            }
-
-            // 3. Пошук за релевантними ключовими словами для вибраної категорії
-            val keywords = foodCategory?.searchKeywords ?: listOf(category)
-            for (kw in keywords) {
-                val found = apiClient.searchMeals(kw)
-                candidates.addAll(found)
-            }
-
-            // Fallback: якщо нічого не знайдено — шукаємо за загальним параметром category
-            if (candidates.isEmpty()) {
-                candidates.addAll(apiClient.searchMeals(category))
-            }
-
-            val uniqueMeals = candidates.distinctBy { it.idMeal }.shuffled()
-            val newDishes = uniqueMeals.map { it.toDomainDish(categoryFallback = category) }
-
-            for (dish in newDishes) {
-                rawDishesCache[dish.id] = dish
-            }
-
-            // Додаємо в буфер лише не свайпнуті
-            val unswiped = newDishes.filter { it.id !in swipedIds }
-            if (unswiped.isNotEmpty()) {
-                buffer.addAll(unswiped.drop(1))
-                val firstDish = getOrFetchFullDish(unswiped.first())
-                rawDishesCache[firstDish.id] = firstDish
-                return@safeCall firstDish.applyTranslation()
-            }
-
-            // Якщо всі виявилися свайпнутими — повертаємо першу доступну або null
-            newDishes.firstOrNull()?.let { getOrFetchFullDish(it).applyTranslation() }
+        // Якщо це новий старт сесії (нічого ще не виключено) — очищаємо кешований буфер категорії
+        if (excludedDishIds.isEmpty()) {
+            categoryBuffers.remove(category)
         }
+
+        // Якщо вибрано категорію "Випадково" (Random)
+        if (foodCategory == FoodCategory.RANDOM || category.equals("Random", ignoreCase = true)) {
+            val maxAttempts = 20
+            var attempts = 0
+            while (attempts < maxAttempts) {
+                attempts++
+                val randomMeal = apiClient.getRandomMeal() ?: continue
+                val dish = randomMeal.toDomainDish(categoryFallback = "random")
+                if (dish.id !in excludedDishIds) {
+                    rawDishesCache[dish.id] = dish
+                    return@safeCall dish.applyNameTranslation()
+                }
+            }
+            return@safeCall null
+        }
+
+        val buffer = categoryBuffers.getOrPut(category) { mutableListOf() }
+
+        // Шукаємо першу страву в буфері, яку користувач ще не бачив у цій сесії
+        while (buffer.isNotEmpty()) {
+            val candidate = buffer.removeAt(0)
+            if (candidate.id !in excludedDishIds) {
+                rawDishesCache[candidate.id] = candidate
+                return@safeCall candidate.applyNameTranslation()
+            }
+        }
+
+        // Якщо буфер вичерпано — шукаємо точно відповідні страви в TheMealDB
+        val candidates = mutableListOf<MealDto>()
+
+        // 1. Пошук за категорією TheMealDB
+        foodCategory?.mealDbCategory?.let { mealCat ->
+            candidates.addAll(apiClient.getMealsByCategory(mealCat))
+        }
+
+        // 2. Пошук за регіоном/кухнею TheMealDB
+        foodCategory?.mealDbArea?.let { area ->
+            candidates.addAll(apiClient.getMealsByArea(area))
+        }
+
+        // 3. Пошук за релевантними ключовими словами для вибраної категорії
+        val keywords = foodCategory?.searchKeywords ?: listOf(category)
+        for (kw in keywords) {
+            val found = apiClient.searchMeals(kw)
+            candidates.addAll(found)
+        }
+
+        // Fallback: якщо нічого не знайдено — шукаємо за загальним параметром category
+        if (candidates.isEmpty()) {
+            candidates.addAll(apiClient.searchMeals(category))
+        }
+
+        val uniqueMeals = candidates.distinctBy { it.idMeal }.shuffled()
+        val newDishes = uniqueMeals.map { it.toDomainDish(categoryFallback = category) }
+
+        for (dish in newDishes) {
+            rawDishesCache[dish.id] = dish
+        }
+
+        // Додаємо в буфер лише ті, які ще НЕ показувалися в цій сесії
+        val unseen = newDishes.filter { it.id !in excludedDishIds }
+        if (unseen.isNotEmpty()) {
+            buffer.addAll(unseen.drop(1))
+            val firstDish = unseen.first()
+            rawDishesCache[firstDish.id] = firstDish
+            return@safeCall firstDish.applyNameTranslation()
+        }
+
+        // Якщо всі страви цієї категорії вже були показані в поточній сесії — повертаємо null
+        return@safeCall null
+    }
 
     // ───────────────────────── insertSwipe ─────────────────────────
 
@@ -140,7 +143,7 @@ class FoodRepositoryImpl(
 
     override suspend fun getRestaurantsForDish(dishId: String): List<PlaceWithPrice> =
         safeCall("getRestaurantsForDish") {
-            val dish = getDishById(dishId)
+            val dish = rawDishesCache[dishId] ?: getDishById(dishId, loadRecipe = false)
             val dishName = dish?.name ?: "Dish"
             val encodedName = try {
                 URLEncoder.encode(dishName, "UTF-8")
@@ -182,11 +185,11 @@ class FoodRepositoryImpl(
 
     // ───────────────────────── searchDishesProgressive ─────────────────────────
 
-    override fun searchDishesProgressive(query: String): Flow<List<Dish>> = flow {
+    override fun searchDishesProgressive(query: String): Flow<List<Dish>> = channelFlow {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) {
-            emit(emptyList())
-            return@flow
+            send(emptyList())
+            return@channelFlow
         }
 
         val targetLang = localStore.selectedLanguage.value
@@ -207,19 +210,22 @@ class FoodRepositoryImpl(
             rawDishesCache[dish.id] = dish
         }
 
-        // 3. НЕГАЙНО відображаємо всі знайдені страви на екрані за 0 мс
+        // 3. НЕГАЙНО відображаємо всі знайдені страви на екрані за 0 мс (оригінальні назви)
         val currentDishes = rawDishes.toMutableList()
-        emit(currentDishes.toList())
+        send(currentDishes.toList())
 
-        // 4. Порезультатно асинхронно перекладаємо кожну страву та емітимо оновлення
+        // 4. Поелементно асинхронно перекладаємо ТІЛЬКИ назви кожної страви та відправляємо оновлення в потік
+        val mutex = Mutex()
         coroutineScope {
             rawDishes.forEachIndexed { index, dish ->
                 launch {
                     try {
-                        val translated = dish.applyTranslation()
-                        if (translated != currentDishes[index]) {
-                            currentDishes[index] = translated
-                            emit(currentDishes.toList())
+                        val translated = dish.applyNameTranslation()
+                        mutex.withLock {
+                            if (translated != currentDishes[index]) {
+                                currentDishes[index] = translated
+                                send(currentDishes.toList())
+                            }
                         }
                     } catch (_: Exception) {}
                 }
@@ -232,30 +238,46 @@ class FoodRepositoryImpl(
 
     // ───────────────────────── getDishById ─────────────────────────
 
-    override suspend fun getDishById(dishId: String): Dish? {
+    override suspend fun getDishById(dishId: String, loadRecipe: Boolean): Dish? {
         rawDishesCache[dishId]?.let { cached ->
-            if (cached.recipeText.isNullOrBlank() || cached.recipeText.contains("на сайті автора")) {
-                val fetched = fetchFullMealById(dishId)
-                if (fetched != null) {
-                    rawDishesCache[dishId] = fetched
-                    return fetched.applyTranslation()
+            if (loadRecipe) {
+                if (cached.recipeText.isNullOrBlank() || cached.recipeText.contains("на сайті автора")) {
+                    val fetched = fetchFullMealById(dishId)
+                    if (fetched != null) {
+                        rawDishesCache[dishId] = fetched
+                        return fetched.applyTranslation()
+                    }
                 }
+                return cached.applyTranslation()
+            } else {
+                return cached.applyNameTranslation()
             }
-            return cached.applyTranslation()
         }
 
         // Перевіряємо збережені улюблені
         val fromLiked = localStore.getLikedDishes().firstOrNull { it.id == dishId }
         if (fromLiked != null) {
-            rawDishesCache[dishId] = fromLiked
-            return fromLiked.applyTranslation()
+            if (loadRecipe) {
+                if (fromLiked.recipeText.isNullOrBlank() || fromLiked.recipeText.contains("на сайті автора")) {
+                    val fetched = fetchFullMealById(dishId)
+                    if (fetched != null) {
+                        rawDishesCache[dishId] = fetched
+                        return fetched.applyTranslation()
+                    }
+                }
+                rawDishesCache[dishId] = fromLiked
+                return fromLiked.applyTranslation()
+            } else {
+                rawDishesCache[dishId] = fromLiked
+                return fromLiked.applyNameTranslation()
+            }
         }
 
         // Завантажуємо з TheMealDB API
         return safeCall("getDishById") {
             val fetched = fetchFullMealById(dishId) ?: return@safeCall null
             rawDishesCache[fetched.id] = fetched
-            fetched.applyTranslation()
+            if (loadRecipe) fetched.applyTranslation() else fetched.applyNameTranslation()
         }
     }
 
@@ -268,7 +290,7 @@ class FoodRepositoryImpl(
                 liked.map { dish ->
                     async {
                         rawDishesCache[dish.id] = dish
-                        dish.applyTranslation()
+                        dish.applyNameTranslation()
                     }
                 }.awaitAll()
             }
@@ -285,14 +307,6 @@ class FoodRepositoryImpl(
     private suspend fun fetchFullMealById(dishId: String): Dish? {
         val dto = apiClient.getMealById(dishId) ?: return null
         return dto.toDomainDish()
-    }
-
-    private suspend fun getOrFetchFullDish(dish: Dish): Dish {
-        if (dish.recipeText.isNullOrBlank() || dish.recipeText.contains("на сайті автора")) {
-            val full = fetchFullMealById(dish.id)
-            if (full != null) return full
-        }
-        return dish
     }
 
     private fun MealDto.toDomainDish(categoryFallback: String? = null): Dish {
@@ -329,6 +343,13 @@ class FoodRepositoryImpl(
             .toString()
             .replace("\u00A0", " ")
             .trim()
+    }
+
+    private suspend fun Dish.applyNameTranslation(): Dish {
+        if (!localStore.autoTranslateEnabled.value) return this
+        val targetLang = localStore.selectedLanguage.value
+        if (targetLang == AppLanguage.ENGLISH) return this
+        return translationService.translateDishName(this, targetLang)
     }
 
     private suspend fun Dish.applyTranslation(): Dish {

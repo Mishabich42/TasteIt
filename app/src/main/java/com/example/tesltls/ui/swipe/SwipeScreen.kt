@@ -62,6 +62,7 @@ import com.example.tesltls.ui.components.MessageBox
 import com.example.tesltls.ui.theme.FoodColors
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -96,10 +97,22 @@ class SwipeViewModel(
     private val _state = MutableStateFlow<SwipeUiState>(SwipeUiState.Loading)
     val state: StateFlow<SwipeUiState> = _state.asStateFlow()
 
+    private val _nextDish = MutableStateFlow<Dish?>(null)
+    val nextDish: StateFlow<Dish?> = _nextDish.asStateFlow()
+
     private val _events = Channel<SwipeEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
     private var cardCounter = 0L
+
+    // ID страв, які вже були показані або знаходяться в черзі попереднього завантаження
+    private val sessionDishIds = mutableSetOf<String>()
+
+    // Черга попередньо завантажених страв для миттєвої подачі без очікування
+    private val prefetchQueue = ArrayDeque<Dish>()
+
+    private var isEndReached = false
+    private var prefetchJob: Job? = null
 
     init {
         reload()
@@ -107,21 +120,22 @@ class SwipeViewModel(
 
     /** Завантажити наступну страву (також для кнопки "Спробувати ще раз"). */
     fun reload() {
-        viewModelScope.launch {
-            _state.value = SwipeUiState.Loading
-            loadNextDish()
-        }
+        prefetchJob?.cancel()
+        prefetchQueue.clear()
+        _nextDish.value = null
+        isEndReached = false
+        _state.value = SwipeUiState.Loading
+        fillPrefetchQueue()
     }
 
     /**
-     * Свайп: вліво (like = false) -> страва потрапляє в чорний список на сьогодні;
-     * вправо (like = true) -> відкриваємо меню дій. В обох випадках зберігаємо свайп
-     * і підтягуємо наступну страву.
+     * Свайп: вліво (like = false) -> страва пропускається;
+     * вправо (like = true) -> відкриваємо меню дій. В обох випадках асинхронно
+     * зберігаємо свайп і МИТТЄВО показуємо наступну заздалегідь завантажену страву.
      */
     fun onSwiped(dish: Dish, isLike: Boolean) {
         viewModelScope.launch {
             if (isLike) _events.send(SwipeEvent.OpenDish(dish.id))
-            _state.value = SwipeUiState.Loading
             try {
                 repository.insertSwipe(userId(), dish.id, isLike)
             } catch (e: CancellationException) {
@@ -129,21 +143,61 @@ class SwipeViewModel(
             } catch (e: Exception) {
                 _events.send(SwipeEvent.ShowMessage(e.toUserMessage()))
             }
-            // Свайп уже записано -> getRandomDish не поверне цю страву знову
-            loadNextDish()
+        }
+
+        // Миттєвий перехід до наступної страви без блокування інтерфейсу
+        if (prefetchQueue.isNotEmpty()) {
+            val next = prefetchQueue.removeFirst()
+            _nextDish.value = prefetchQueue.firstOrNull()
+            _state.value = SwipeUiState.Content(next, ++cardCounter)
+            fillPrefetchQueue()
+        } else if (isEndReached) {
+            _nextDish.value = null
+            _state.value = SwipeUiState.Empty
+        } else {
+            // Якщо користувач свайпнув швидше, ніж мережа встигла підвантажити страву
+            _nextDish.value = null
+            _state.value = SwipeUiState.Loading
+            fillPrefetchQueue()
         }
     }
 
-    private suspend fun loadNextDish() {
-        try {
-            val dish = repository.getRandomDish(category, userId())
-            _state.value =
-                if (dish == null) SwipeUiState.Empty
-                else SwipeUiState.Content(dish, ++cardCounter)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            _state.value = SwipeUiState.Error(e.toUserMessage())
+    private fun fillPrefetchQueue() {
+        if (isEndReached) return
+        if (prefetchJob?.isActive == true) return
+
+        prefetchJob = viewModelScope.launch {
+            // Тримаємо до 2 наперед завантажених страв у буфері для безшовної роботи
+            while (prefetchQueue.size < 2 && !isEndReached) {
+                try {
+                    val dish = repository.getRandomDish(category, userId(), sessionDishIds)
+                    if (dish == null) {
+                        isEndReached = true
+                        if (_state.value is SwipeUiState.Loading && prefetchQueue.isEmpty()) {
+                            _state.value = SwipeUiState.Empty
+                        }
+                        break
+                    } else {
+                        sessionDishIds.add(dish.id)
+                        prefetchQueue.add(dish)
+                        _nextDish.value = prefetchQueue.firstOrNull()
+
+                        // Якщо користувач чекає на завантаження — показуємо страву негайно
+                        if (_state.value is SwipeUiState.Loading) {
+                            val next = prefetchQueue.removeFirst()
+                            _nextDish.value = prefetchQueue.firstOrNull()
+                            _state.value = SwipeUiState.Content(next, ++cardCounter)
+                        }
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    if (_state.value is SwipeUiState.Loading && prefetchQueue.isEmpty()) {
+                        _state.value = SwipeUiState.Error(e.toUserMessage())
+                    }
+                    break
+                }
+            }
         }
     }
 }
@@ -159,8 +213,20 @@ fun SwipeScreen(
 ) {
     val strings = com.example.tesltls.ui.strings.LocalAppStrings.current
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val nextDish by viewModel.nextDish.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val currentOnOpenDish by rememberUpdatedState(onOpenDish)
+
+    // Невидиме попереднє завантаження картинки наступної страви в кеш Coil
+    if (nextDish?.imageUrl != null) {
+        Box(Modifier.size(0.dp).alpha(0f)) {
+            DishImage(
+                url = nextDish?.imageUrl,
+                category = nextDish?.category,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->

@@ -26,12 +26,16 @@ import kotlinx.coroutines.flow.mapLatest
 interface FoodRepository {
 
     /**
-     * Повертає випадкову страву з категорії [category], яку користувач [userId]
-     * ще НЕ свайпав сьогодні (враховуються і лайки, і дизлайки).
+     * Повертає випадкову страву з категорії [category], яка ще не показувалася
+     * в поточній сесії (відсутня в [excludedDishIds]).
      *
      * @return страву або `null`, якщо в категорії не лишилось доступних страв.
      */
-    suspend fun getRandomDish(category: String, userId: String): Dish?
+    suspend fun getRandomDish(
+        category: String,
+        userId: String,
+        excludedDishIds: Set<String> = emptySet()
+    ): Dish?
 
     /**
      * Зберігає свайп: [isLike] = true -> 'like', false -> 'dislike'.
@@ -59,8 +63,9 @@ interface FoodRepository {
 
     /**
      * Повертає страву за id або `null`, якщо такої немає.
+     * Якщо [loadRecipe] = true, також завантажує та перекладає покроковий рецепт.
      */
-    suspend fun getDishById(dishId: String): Dish?
+    suspend fun getDishById(dishId: String, loadRecipe: Boolean = true): Dish?
 
     /**
      * Страви, які користувач [userId] колись свайпнув вправо (like),

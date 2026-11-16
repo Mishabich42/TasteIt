@@ -22,6 +22,13 @@ enum class FoodCategory(
     val mealDbCategory: String? = null,
     val mealDbArea: String? = null
 ) {
+    RANDOM(
+        dbValue = "Random",
+        title = "Випадково",
+        icon = R.drawable.cat_random,
+        color = Color(0xFFFFD1DC),
+        searchKeywords = emptyList()
+    ),
     SOUPS(
         dbValue = "Soups",
         title = "Супи",
@@ -118,13 +125,6 @@ enum class FoodCategory(
         icon = R.drawable.cat_bakery,
         color = Color(0xFFF0E0C8),
         searchKeywords = listOf("bread", "pie", "tart", "bun", "muffin", "pastry", "scone")
-    ),
-    RANDOM(
-        dbValue = "Random",
-        title = "Випадково",
-        icon = R.drawable.cat_random,
-        color = Color(0xFFFFD1DC),
-        searchKeywords = emptyList()
     );
 
     companion object {

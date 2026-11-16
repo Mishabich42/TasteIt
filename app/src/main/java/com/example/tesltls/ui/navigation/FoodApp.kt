@@ -83,7 +83,12 @@ fun FoodApp() {
                     .imePadding()
             ) {
             composable<Route.Home> {
-                val vm = entryViewModel { HomeViewModel(ServiceLocator.foodRepository) }
+                val vm = entryViewModel {
+                    HomeViewModel(
+                        repository = ServiceLocator.foodRepository,
+                        userId = { ServiceLocator.ensureUserId() }
+                    )
+                }
                 HomeScreen(
                     viewModel = vm,
                     onCategoryClick = { navController.navigate(Route.Swipe(it.dbValue)) },

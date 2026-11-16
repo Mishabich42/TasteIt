@@ -50,21 +50,38 @@ import com.example.tesltls.ui.common.toUserMessage
 import com.example.tesltls.ui.components.AppIcon
 import com.example.tesltls.ui.components.DishRow
 import com.example.tesltls.ui.theme.FoodColors
+import com.example.tesltls.di.ServiceLocator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 // ───────────────────────── ViewModel ─────────────────────────
 
-class HomeViewModel(repository: FoodRepository) : ViewModel() {
+class HomeViewModel(
+    private val repository: FoodRepository,
+    private val userId: suspend () -> String = { ServiceLocator.ensureUserId() }
+) : ViewModel() {
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
     fun onQueryChange(value: String) {
         _query.value = value
+    }
+
+    /**
+     * При виборі страв з пошуку — вибрана страва автоматично
+     * зберігається в улюблених.
+     */
+    fun onDishSelected(dishId: String) {
+        viewModelScope.launch {
+            try {
+                repository.insertSwipe(userId(), dishId, isLike = true)
+            } catch (_: Exception) {}
+        }
     }
 
     /**
@@ -133,7 +150,13 @@ fun HomeScreen(
                     key = { it.id },
                     span = { GridItemSpan(maxLineSpan) }
                 ) { dish ->
-                    DishRow(dish = dish, onClick = { onDishClick(dish.id) })
+                    DishRow(
+                        dish = dish,
+                        onClick = {
+                            viewModel.onDishSelected(dish.id)
+                            onDishClick(dish.id)
+                        }
+                    )
                 }
             }
         }

@@ -121,11 +121,11 @@ class FavoritesViewModel(
                 val currentDishes = rawLiked.toMutableList()
                 _state.value = FavoritesUiState.Content(currentDishes.toList())
 
-                // 3. Для кожної страви ОКРЕМО й асинхронно запускаємо переклад
+                // 3. Для кожної страви ОКРЕМО й асинхронно запускаємо переклад назви
                 rawLiked.forEachIndexed { index, dish ->
                     launch {
                         try {
-                            val translated = repository.getDishById(dish.id) ?: dish
+                            val translated = repository.getDishById(dish.id, loadRecipe = false) ?: dish
                             if (translated != currentDishes[index]) {
                                 currentDishes[index] = translated
                                 _state.value = FavoritesUiState.Content(currentDishes.toList())

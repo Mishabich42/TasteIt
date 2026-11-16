@@ -49,8 +49,11 @@ class GoogleTranslationService {
 
     private val apiKey: String = BuildConfig.GEMINI_API_KEY
 
-    // Кеш перекладених об'єктів страв: key = "${langCode}_${dish.id}"
+    // Кеш перекладених об'єктів страв (повний переклад разом із рецептом): key = "${langCode}_${dish.id}"
     private val translatedDishCache = ConcurrentHashMap<String, Dish>()
+
+    // Кеш перекладених об'єктів страв тільки з назвою: key = "${langCode}_${dish.id}"
+    private val translatedDishNameCache = ConcurrentHashMap<String, Dish>()
 
     // Кеш перекладених окремих текстів: key = "${langCode}_$originalText"
     private val translationCache = ConcurrentHashMap<String, String>()
@@ -59,6 +62,30 @@ class GoogleTranslationService {
     private val translators = ConcurrentHashMap<String, Translator>()
     private val reverseTranslators = ConcurrentHashMap<String, Translator>()
     private val downloadConditions = DownloadConditions.Builder().build()
+
+    /**
+     * Перекладає ТІЛЬКИ назву страви [dish] на мову [target] (для швидкого показу карток у SwipeScreen),
+     * не витрачаючи час на переклад рецепту.
+     */
+    suspend fun translateDishName(dish: Dish, target: AppLanguage): Dish {
+        if (target == AppLanguage.ENGLISH) return dish
+
+        val cacheKey = "${target.code}_${dish.id}"
+        translatedDishNameCache[cacheKey]?.let { return it }
+
+        // Якщо повна страва вже перекладена раніше — беремо перекладену назву звідти
+        translatedDishCache[cacheKey]?.let { fullDish ->
+            val nameOnly = dish.copy(name = fullDish.name, youtubeUrl = fullDish.youtubeUrl)
+            translatedDishNameCache[cacheKey] = nameOnly
+            return nameOnly
+        }
+
+        val translatedName = translate(dish.name, target)
+        val updated = dish.copy(name = translatedName)
+        val result = updateYoutubeUrl(updated, translatedName)
+        translatedDishNameCache[cacheKey] = result
+        return result
+    }
 
     /**
      * Перекладає назву та текст рецепту страви [dish] на мову [target].
@@ -89,8 +116,13 @@ class GoogleTranslationService {
                 val rawResponse = callGeminiApi(prompt)
                 val parsed = parseGeminiResponse(rawResponse)
 
-                val translatedName = parsed["name"]?.takeIf { it.isNotBlank() } ?: translate(dish.name, target)
-                val translatedRecipe = parsed["recipe"]?.takeIf { it.isNotBlank() } ?: dish.recipeText?.let { if (it.isNotBlank()) translate(it, target) else it }
+                val preTranslatedName = translatedDishNameCache[dishCacheKey]?.name
+                val translatedName = parsed["name"]?.takeIf { it.isNotBlank() }
+                    ?: preTranslatedName
+                    ?: translate(dish.name, target)
+
+                val translatedRecipe = parsed["recipe"]?.takeIf { it.isNotBlank() }
+                    ?: dish.recipeText?.let { if (it.isNotBlank()) translate(it, target) else it }
 
                 val updated = dish.copy(
                     name = translatedName,
@@ -108,11 +140,14 @@ class GoogleTranslationService {
         }
 
         translatedDishCache[dishCacheKey] = resultDish
+        translatedDishNameCache[dishCacheKey] = resultDish
         return resultDish
     }
 
     private suspend fun fallbackMlKitTranslateDish(dish: Dish, target: AppLanguage): Dish {
-        val translatedName = translate(dish.name, target)
+        val dishCacheKey = "${target.code}_${dish.id}"
+        val preTranslatedName = translatedDishNameCache[dishCacheKey]?.name
+        val translatedName = preTranslatedName ?: translate(dish.name, target)
         val translatedRecipe = dish.recipeText?.let {
             if (it.isNotBlank()) translate(it, target) else it
         }
