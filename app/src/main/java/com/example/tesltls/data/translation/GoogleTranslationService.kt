@@ -175,7 +175,7 @@ class GoogleTranslationService {
     }
 
     /**
-     * Перекладає пошуковий запит з мови користувача [source] на англійську для пошуку в TheMealDB
+     * Перекладає пошувий запит з мови користувача [source] на англійську для пошуку в TheMealDB
      * виключно через локальний Google ML Kit Translate для миттєвого відгуку.
      */
     suspend fun translateToEnglish(query: String, source: AppLanguage): String {
