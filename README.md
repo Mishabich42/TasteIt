@@ -83,17 +83,13 @@ Android-застосунок для вибору та приготування �
 
 ## 📸 Скріншоти
 
-<!-- 🖼️ Поклади скріншоти в docs/screenshots/ і розкоментуй таблицю -->
 
-<!--
 <div align="center">
 
-| Свайп | Пошук | Рецепт | Улюблене |
-|:---:|:---:|:---:|:---:|
-| <img src="docs/screenshots/swipe.png" width="200"/> | <img src="docs/screenshots/search.png" width="200"/> | <img src="docs/screenshots/recipe.png" width="200"/> | <img src="docs/screenshots/favorites.png" width="200"/> |
+<img src="docs/screenshots/swipe.png" width="200"/>  <img src="docs/screenshots/search.png" width="200"/>  <img src="docs/screenshots/recipe.png" width="200"/> | <img src="docs/screenshots/favorites.png" width="200"/> 
 
 </div>
--->
+
 
 > 🚧 Скріншоти незабаром.
 
