@@ -1,4 +1,4 @@
-[README.md](https://github.com/user-attachments/files/35373352/README.md)
+
 <div align="center">
 
 <!-- 🖼️ Заміни на свій логотип: поклади файл у docs/logo.png -->
